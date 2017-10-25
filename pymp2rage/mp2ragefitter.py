@@ -203,8 +203,6 @@ def MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZsli
 
     T1vector = np.arange(0.05, 4.05, 0.05)
 
-
-
     FLASH_tr = np.atleast_1d(FLASH_tr)
 
     if len(FLASH_tr) == 1:
@@ -239,9 +237,9 @@ def MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZsli
     if all_data == 0:
         minindex = np.argmax(Intensity)
         maxindex = np.argmin(Intensity)
-        Intensity = Intensity[minindex:maxindex]
-        T1vector = T1vector[minindex:maxindex];
-        IntensityBeforeComb = Signal[minindex:maxindex]
+        Intensity = Intensity[minindex:maxindex+1]
+        T1vector = T1vector[minindex:maxindex+1]
+        IntensityBeforeComb = Signal[minindex:maxindex+1]
     else:
         IntensityBeforeComb = Signal
     return Intensity, T1vector, IntensityBeforeComb
