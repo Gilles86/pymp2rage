@@ -204,7 +204,7 @@ def MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZsli
         if ((np.diff(invtimesAB) >= nZ_bef * FLASH_tr[1] + nZ_aft*FLASH_tr[0]) and \
            (invtimesa >= nZ_bef*FLASH_tr[0]) and \
            (invtimesb <= (MPRAGE_tr-nZ_aft*FLASH_tr[1]))):
-            Signal[j, :] = MP2RAGEFitter.MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, invtimesAB, nZslices2, FLASH_tr, [flipanglea, flipangleb], sequence, T1)
+            Signal[j, :] = MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, invtimesAB, nZslices2, FLASH_tr, [flipanglea, flipangleb], sequence, T1)
 
 
         else:
