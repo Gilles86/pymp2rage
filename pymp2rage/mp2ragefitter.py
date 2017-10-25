@@ -67,6 +67,29 @@ class MP2RAGEFitter(object):
 
         return self.MP2RAGE
 
+    def T1mappingMP2RAGE(self, nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, 
+                         FLASH_tr, sequence='normal', **kwargs):
+        
+        Intensity, T1Vector, _ = MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, 
+                                                     nZslices, FLASH_tr, sequence, **kwargs)
+        
+        T1Vector = np.append(T1Vector, T1Vector[-1] + (T1Vector[-1]-T1Vector[-2]))    
+        Intensity = np.append(Intensity, -0.5)
+        
+        
+        T1Vector = T1Vector[np.argsort(Intensity)]
+        Intensity = np.sort(Intensity)
+        
+        self.T1 = np.interp(-0.5 + self.mp2rage.get_data()/4096, Intensity, T1Vector)
+        self.T1[np.isnan(self.T1)] = 0
+        
+        # Convert to milliseconds
+        self.T1 *= 1000
+        
+        # Make image
+        self.T1 = nb.Nifti1Image(self.T1, self.mp2rage.affine)
+        
+        return self.T1
 
 def MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
