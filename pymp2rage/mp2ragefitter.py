@@ -56,16 +56,16 @@ class MP2RAGEFitter(object):
         compINV2 = self.inv2.get_data() * np.exp(self.inv2ph.get_data() * 1j)
 
         # Scale to 4095
-        self.MP2RAGE = (np.real(compINV1*compINV2/(compINV1**2 + compINV2**2)))*4095+2048
+        self.mp2rage = (np.real(compINV1*compINV2/(compINV1**2 + compINV2**2)))*4095+2048
 
         # Clip anything outside of range
-        self.MP2RAGE = np.clip(self.MP2RAGE, 0, 4095)
+        self.mp2rage = np.clip(self.mp2rage, 0, 4095)
 
         # Convert to nifti-image
-        self.MP2RAGE = nb.Nifti1Image(self.MP2RAGE, self.inv1.affine)
+        self.mp2rage = nb.Nifti1Image(self.mp2rage, self.inv1.affine)
 
 
-        return self.MP2RAGE
+        return self.mp2rage
 
     def T1mappingMP2RAGE(self, nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, 
                          FLASH_tr, sequence='normal', **kwargs):
