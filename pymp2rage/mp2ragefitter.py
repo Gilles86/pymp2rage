@@ -19,7 +19,7 @@ class MP2RAGEFitter(object):
             if (inv1 is not None) or (inv1ph is not None):
                 raise Exception('*Either* give inv1_combined *or* inv1 and inv1_ph.')
 
-            self.inv1 = image.index_img(inv2_combined, 0)
+            self.inv1 = image.index_img(inv1_combined, 0)
             self.inv1ph = image.index_img(inv1_combined, 1)
 
         if inv2_combined is not None:
