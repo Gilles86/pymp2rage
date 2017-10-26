@@ -53,6 +53,7 @@ class MP2RAGEFitter(object):
 
 
         # Preset masked versions
+        self._mp2rage = None
         self._mask = None
         self._inv1_masked = None
         self._inv2_masked = None
@@ -65,16 +66,23 @@ class MP2RAGEFitter(object):
         compINV2 = self.inv2.get_data() * np.exp(self.inv2ph.get_data() * 1j)
 
         # Scale to 4095
-        self.mp2rage = (np.real(compINV1*compINV2/(compINV1**2 + compINV2**2)))*4095+2048
+        self._mp2rage = (np.real(compINV1*compINV2/(compINV1**2 + compINV2**2)))*4095+2048
 
         # Clip anything outside of range
-        self.mp2rage = np.clip(self.mp2rage, 0, 4095)
+        self._mp2rage = np.clip(self._mp2rage, 0, 4095)
 
         # Convert to nifti-image
-        self.mp2rage = nb.Nifti1Image(self.mp2rage, self.inv1.affine)
+        self._mp2rage = nb.Nifti1Image(self._mp2rage, self.inv1.affine)
 
+        return self._mp2rage
 
-        return self.mp2rage
+    @property
+    def mp2rage(self):
+
+        if self._mp2rage is None:
+            self.fit_mp2rage()
+
+        return self._mp2rage
 
     def fit_t1(self, nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, 
                          FLASH_tr, sequence='normal', **kwargs):
@@ -145,9 +153,9 @@ class MP2RAGEFitter(object):
     @property
     def mask(self):
         if self._mask is None:
-            logging.warning('Mask is not computed yet. Computing it now with' \
-                            'default settings (nilearn\'s copmute_mask)' \
-                            'For more control, use ``fit_mask``-function.')
+            logging.warning('Mask is not computed yet. Computing the mask now with' \
+                            'default settings using nilearn\'s compute_epi_mask)' \
+                            'For more control, use the ``fit_mask``-function.')
             self.fit_mask()
 
         return self._mask
@@ -157,6 +165,17 @@ class MP2RAGEFitter(object):
     def t1_masked(self):
         return image.math_img('t1 * mask', t1=self.t1, mask=self.mask)
 
+    @property
+    def mp2rage_masked(self):
+        return image.math_img('mp2rage * mask', mp2rage=self.mp2rage, mask=self.mask)
+
+    @property
+    def inv1_masked(self):
+        return image.math_img('inv1 * mask', inv1=self.inv1, mask=self.mask)
+
+    @property
+    def inv2_masked(self):
+        return image.math_img('inv2 * mask', inv2=self.inv2, mask=self.mask)
 
 def MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
