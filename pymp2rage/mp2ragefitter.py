@@ -1,6 +1,7 @@
 import nibabel as nb
-from nilearn import image
+from nilearn import image, masking
 import numpy as np
+import logging
 
 
 class MP2RAGEFitter(object):
@@ -51,6 +52,14 @@ class MP2RAGEFitter(object):
         self.inv2ph = image.math_img('((x - np.max(x))/ - np.ptp(x)) * 2 * np.pi', x=self.inv2ph)
 
 
+        # Preset masked versions
+        self._mask = None
+        self._inv1_masked = None
+        self._inv2_masked = None
+        self._t1_masked = None
+        self._mp2rage_masked = None
+
+
     def fit_mp2rage(self):
         compINV1 = self.inv1.get_data() * np.exp(self.inv1ph.get_data() * 1j)
         compINV2 = self.inv2.get_data() * np.exp(self.inv2ph.get_data() * 1j)
@@ -90,6 +99,62 @@ class MP2RAGEFitter(object):
         self.T1 = nb.Nifti1Image(self.T1, self.mp2rage.affine)
         
         return self.T1
+
+
+    def fit_mask(self, modality='INV2', smooth_fwhm=2.5, threshold=None, **kwargs):
+        """Fit a mask based on one of the MP2RAGE images (usually INV2).
+
+        This function creates a mask of the brain and skull, so that parts of the image
+        that have insufficient signal for proper T1-fitting can be ignored.
+        By default, it uses a slightly smoothed version of the INV2-image (to increase
+        SNR), and the "Nichols"-method, as implemented in the ``nilearn``-package,
+        to remove low-signal areas. The "Nichols"-method looks for the lowest 
+        density in the intensity histogram and places a threshold cut there.
+
+        You can also give an arbitrary 'threshold'-parameter to threshold the image
+        at a specific value.
+
+        The resulting mask is returned and stored in the ``mask``-attribute of
+        the MP2RAGEFitter-object. 
+
+        Args:
+            modality (str): Modality to  use for masking operation (defaults to INV2) 
+            smooth (float): The size of the smoothing kernel to apply in mm (defaults 
+                            to 2.5 mm)
+            threshold (float): If not None, the image is thresholded at this (arbitary)
+                               number.
+            **kwargs: These arguments are forwarded to nilearn's ``compute_epi_mask``
+
+        Returns:
+            The computed mask
+
+        """
+
+        im = getattr(self, modality.lower())
+
+        if threshold is None:
+            smooth_im = image.smooth_img(im, smooth_fwhm)
+            self._mask = masking.compute_epi_mask(smooth_im, **kwargs)
+        else:
+            self._mask = image.math_img('im > %s' % threshold, im=im)
+
+        return self.mask
+
+    @property
+    def mask(self):
+        if self._mask is None:
+            logging.warning('Mask is not computed yet. Computing it now with' \
+                            'default settings (nilearn\'s copmute_mask)' \
+                            'For more control, use ``fit_mask``-function.')
+            self.fit_mask()
+
+        return self._mask
+
+
+    @property
+    def t1_masked(self):
+        return image.math_img('t1 * mask', t1=self.t1, mask=self.mask)
+
 
 def MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
