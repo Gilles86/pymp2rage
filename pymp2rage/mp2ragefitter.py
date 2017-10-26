@@ -4,7 +4,7 @@ import numpy as np
 import logging
 
 
-class MP2RAGEFitter(object):
+class MP2RAGE(object):
 
 
     def __init__(self, inv1_combined=None, inv2_combined=None, inv1=None, inv1ph=None, inv2=None, inv2ph=None):
