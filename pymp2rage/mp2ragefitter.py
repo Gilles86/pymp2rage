@@ -6,8 +6,62 @@ import logging
 
 class MP2RAGE(object):
 
+    """ This object can calculate a Unified T1-weighted image and a
+    quantitative T1 map, based on the magnitude and phase-information of the two
+    volumes of a MP2RAGE-sequence (Marques et al., 2010).
 
-    def __init__(self, inv1_combined=None, inv2_combined=None, inv1=None, inv1ph=None, inv2=None, inv2ph=None):
+    It can also further correct this map for B1 inhomogenieties using a
+    B1 map (Marques et al., 2014).
+
+    Args:
+        MPRAGE_tr (float): MP2RAGE TR in seconds
+        invtimesAB (list of floats): Inversion times in seconds
+        flipangleABdegree (list of floats): Flip angle of the two readouts in degrees
+        nZslices (list of integers): Slices Per Slab * [PartialFourierInSlice-0.5  0.5]
+        FLASH_tr (float): TR of the GRE readout
+        sequence (string): Kind of sequence (default is 'normal')
+        inversion_efficiency: inversion efficiency of the MP2RAGE PULSE (Default is 0.96, 
+                              as measured on a Siemens system).
+        B0 (float): Field strength in Tesla
+        inv1_combined (filename or Nifti1Image, optional): Magnitude and phase image corresponding to
+                                                           first inversion pulse. Should always consist
+                                                           of two volumes.
+        inv2_combined (filename or Nifti1Image, optional): Magnitude and phase image corresponding to
+                                                           second inversion pulse. Should always consist
+                                                           of two volumes.
+        inv1 (filename or Nifti1Image, optional): Magnitude image of first inversion pulse.
+                                                  Should always consist of one volume.
+        inv1ph (filename or Nifti1Image, optional): Phase image of first inversion pulse.
+                                                    Should always consist of one volume.
+        inv2 (filename or Nifti1Image, optional): Magnitude image of second inversion pulse.
+                                                  Should always consist of one volume.
+        inv2ph (filename or Nifti1Image, optional): Phase image of second inversion pulse.
+                                                    Should always consist of one volume.
+
+    Attributes:
+        t1 (Nifti1Image): Quantitative T1 map
+        t1_uni (Nifti1Image): Bias-field corrected T1-weighted map
+
+        t1_masked (Nifti1Image): Quantitative T1 map, masked 
+        t1w_uni_masked (Nifti1Image): Bias-field corrected T1-weighted map, masked
+    """
+
+    def __init__(self, 
+                 MPRAGE_tr,
+                 invtimesAB,
+                 flipangleABdegree,
+                 nZslices,
+                 FLASH_tr,
+                 sequence='normal',
+                 inversion_efficiency=0.96,
+                 B0=7,
+                 inv1_combined=None, 
+                 inv2_combined=None, 
+                 inv1=None, 
+                 inv1ph=None, 
+                 inv2=None, 
+                 inv2ph=None): 
+
 
 
         if inv1_combined is not None:
@@ -51,44 +105,62 @@ class MP2RAGE(object):
         self.inv1ph = image.math_img('((x - np.max(x))/ - np.ptp(x)) * 2 * np.pi', x=self.inv1ph)
         self.inv2ph = image.math_img('((x - np.max(x))/ - np.ptp(x)) * 2 * np.pi', x=self.inv2ph)
 
+        # Set parameters
+        self.MPRAGE_tr = MPRAGE_tr
+        self.invtimesAB = invtimesAB
+        self.flipangleABdegree = flipangleABdegree
+        self.nZslices = nZslices
+        self.FLASH_tr = FLASH_tr
+        self.sequence = sequence
+        self.inversion_efficiency = inversion_efficiency
+        self.B0 = B0
+        
+        # set up t1
+        self._t1 = None
 
         # Preset masked versions
-        self._mp2rage = None
+        self._t1w_uni = None
         self._mask = None
         self._inv1_masked = None
         self._inv2_masked = None
         self._t1_masked = None
-        self._mp2rage_masked = None
+        self._t1w_uni_masked = None
 
 
-    def fit_mp2rage(self):
+    @property
+    def t1w_uni(self):
+        if self._t1w_uni is None:
+            self.fit_t1w_uni()
+
+        return self._t1w_uni
+
+    @property
+    def t1(self):
+        if self._t1 is None:
+            self.fit_t1()
+
+        return self._t1
+    
+    def fit_t1w_uni(self):
         compINV1 = self.inv1.get_data() * np.exp(self.inv1ph.get_data() * 1j)
         compINV2 = self.inv2.get_data() * np.exp(self.inv2ph.get_data() * 1j)
 
         # Scale to 4095
-        self._mp2rage = (np.real(compINV1*compINV2/(compINV1**2 + compINV2**2)))*4095+2048
+        self._t1w_uni = (np.real(compINV1*compINV2/(compINV1**2 + compINV2**2)))*4095+2048
 
         # Clip anything outside of range
-        self._mp2rage = np.clip(self._mp2rage, 0, 4095)
+        self._t1w_uni = np.clip(self._t1w_uni, 0, 4095)
 
         # Convert to nifti-image
-        self._mp2rage = nb.Nifti1Image(self._mp2rage, self.inv1.affine)
+        self._t1w_uni = nb.Nifti1Image(self._t1w_uni, self.inv1.affine)
 
-        return self._mp2rage
+        return self._t1w_uni
 
-    @property
-    def mp2rage(self):
-
-        if self._mp2rage is None:
-            self.fit_mp2rage()
-
-        return self._mp2rage
-
-    def fit_t1(self, nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, 
-                         FLASH_tr, sequence='normal', **kwargs):
+    def fit_t1(self):
         
-        Intensity, T1Vector, _ = MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, 
-                                                     nZslices, FLASH_tr, sequence, **kwargs)
+        Intensity, T1Vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, self.invtimesAB, self.flipangleABdegree, 
+                                                     self.nZslices, self.FLASH_tr, self.sequence, 2,
+                                                     self.inversion_efficiency, self.B0)
         
         T1Vector = np.append(T1Vector, T1Vector[-1] + (T1Vector[-1]-T1Vector[-2]))    
         Intensity = np.append(Intensity, -0.5)
@@ -97,17 +169,16 @@ class MP2RAGE(object):
         T1Vector = T1Vector[np.argsort(Intensity)]
         Intensity = np.sort(Intensity)
         
-        self.t1 = np.interp(-0.5 + self.mp2rage.get_data()/4096, Intensity, T1Vector)
-        self.t1[np.isnan(self.t1)] = 0
+        self._t1 = np.interp(-0.5 + self.t1w_uni.get_data()/4096, Intensity, T1Vector)
+        self._t1[np.isnan(self._t1)] = 0
         
         # Convert to milliseconds
-        self.t1 *= 1000
+        self._t1 *= 1000
         
         # Make image
-        self.t1 = nb.Nifti1Image(self.t1, self.mp2rage.affine)
+        self._t1 = nb.Nifti1Image(self._t1, self.t1w_uni.affine)
         
-        return self.t1
-
+        return self._t1
 
 
 
@@ -166,8 +237,8 @@ class MP2RAGE(object):
         return image.math_img('t1 * mask', t1=self.t1, mask=self.mask)
 
     @property
-    def mp2rage_masked(self):
-        return image.math_img('mp2rage * mask', mp2rage=self.mp2rage, mask=self.mask)
+    def t1w_uni_masked(self):
+        return image.math_img('t1w_uni * mask', t1w_uni=self.t1w_uni, mask=self.mask)
 
     @property
     def inv1_masked(self):
@@ -177,8 +248,9 @@ class MP2RAGE(object):
     def inv2_masked(self):
         return image.math_img('inv2 * mask', inv2=self.inv2, mask=self.mask)
 
-def MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, inversiontimes, nZslices, 
+def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
+                          nimages=2,
                           B0=7, M0=1, inversionefficiency=0.96):
 
     if sequence == 'normal':
@@ -273,8 +345,8 @@ def MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, inversiontimes, nZslices,
 
     return signal        
 
-def MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLASH_tr, 
-                     sequence, inversion_efficiency=0.96, all_data=0):
+def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLASH_tr, 
+                     sequence, nimages=2, B0=7, M0=1, inversion_efficiency=0.96, all_data=0):
 # first extra parameter is the inversion efficiency
 # second extra parameter is the alldata
 #   if ==1 all data is shown
@@ -311,7 +383,7 @@ def MP2RAGE_lookuptable(nimages, MPRAGE_tr, invtimesAB, flipangleABdegree, nZsli
         if ((np.diff(invtimesAB) >= nZ_bef * FLASH_tr[1] + nZ_aft*FLASH_tr[0]) and \
            (invtimesa >= nZ_bef*FLASH_tr[0]) and \
            (invtimesb <= (MPRAGE_tr-nZ_aft*FLASH_tr[1]))):
-            Signal[j, :] = MPRAGEfunc_varyingTR(nimages, MPRAGE_tr, invtimesAB, nZslices2, FLASH_tr, [flipanglea, flipangleb], sequence, T1)
+            Signal[j, :] = MPRAGEfunc_varyingTR(MPRAGE_tr, invtimesAB, nZslices2, FLASH_tr, [flipanglea, flipangleb], sequence, T1, nimages, B0, M0, inversion_efficiency)
 
 
         else:
