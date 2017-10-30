@@ -47,11 +47,11 @@ class MP2RAGE(object):
     """
 
     def __init__(self, 
-                 MPRAGE_tr,
-                 invtimesAB,
-                 flipangleABdegree,
-                 nZslices,
-                 FLASH_tr,
+                 MPRAGE_tr=None,
+                 invtimesAB=None,
+                 flipangleABdegree=None,
+                 nZslices=None,
+                 FLASH_tr=None,
                  sequence='normal',
                  inversion_efficiency=0.96,
                  B0=7,
@@ -157,6 +157,10 @@ class MP2RAGE(object):
         return self._t1w_uni
 
     def fit_t1(self):
+        if (self.MPRAGE_tr is None) or (self.invtimesAB is None) or (self.flipangleABdegree is None) \
+                or (self.nZslices is None) or (self.FLASH_tr is None):
+            raise Exception("All sequence parameters (MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices,' \
+                            ' and FLASH_TR) have to be provided for T1 fitting")
         
         Intensity, T1Vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, self.invtimesAB, self.flipangleABdegree, 
                                                      self.nZslices, self.FLASH_tr, self.sequence, 2,
