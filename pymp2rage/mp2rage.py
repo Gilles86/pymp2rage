@@ -293,8 +293,9 @@ class MP2RAGE(object):
 
         A MP2RAGE-object can now be created from the BIDS folder as follows:
 
-        > import pymp2rage
-        > mp2rage = pymp2rage.mp2rage.MP2RAGE.from_bids('/data/sourcedata/', '01')
+        Example:
+            >>> import pymp2rage
+            >>> mp2rage = pymp2rage.MP2RAGE.from_bids('/data/sourcedata/', '01')
 
         Args:
             source_dir (BIDS dir): directory containing all necessary files
