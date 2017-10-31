@@ -2,6 +2,9 @@ import nibabel as nb
 from nilearn import image, masking
 import numpy as np
 import logging
+from bids.grabbids import BIDSLayout
+import pandas
+import re
 
 
 class MP2RAGE(object):
@@ -251,6 +254,117 @@ class MP2RAGE(object):
     @property
     def inv2_masked(self):
         return image.math_img('inv2 * mask', inv2=self.inv2, mask=self.mask)
+
+
+    @classmethod
+    def from_bids(cls, source_dir, subject, **kwargs):
+        """ Creates a MP2RAGE-object from a properly organized BIDS-folder.
+
+        The folder should be organized as follows:
+
+        sub-01/anat/:
+         * sub-01_inv-1_part-mag_MP2RAGE.nii
+         * sub-01_inv-1_part-phase_MP2RAGE.nii
+         * sub-01_inv-2_part-mag_MP2RAGE.nii
+         * sub-01_inv-2_part-phase_MP2RAGE.nii
+         * sub-01_inv-1_MP2RAGE.json
+         * sub-01_inv-2_MP2RAGE.json
+
+         The JSON-files should contain all the necessary MP2RAGE sequence parameters
+         and should look something like this:
+
+         sub-01/anat/sub-01_inv-1_MP2RAGE.json:
+             {
+                "InversionTime":0.8,
+                "FlipAngle":5,
+                "ReadoutRepetitionTime":0.0062,
+                "InversionRepetitionTime":5.5,
+                "NumberShots":159
+             }
+
+         sub-01/anat/sub-01_inv-2_MP2RAGE.json:
+             {
+                "InversionTime":2.7,
+                "FlipAngle":7,
+                "ReadoutRepetitionTime":0.0062,
+                "InversionRepetitionTime":5.5,
+                "NumberShots":159
+             }
+
+        A MP2RAGE-object can now be created from the BIDS folder as follows:
+
+        > import pymp2rage
+        > mp2rage = pymp2rage.mp2rage.MP2RAGE.from_bids('/data/sourcedata/', '01')
+
+        Args:
+            source_dir (BIDS dir): directory containing all necessary files
+            subject (str): subject identifier
+            **kwargs: additional keywords that are forwarded to get-function of
+            BIDSLayout. For example `ses` could be used to select specific session.
+        """
+
+
+
+        layout = BIDSLayout(source_dir)
+        
+        filenames = layout.get(subject=subject, return_type='file', type='MP2RAGE', extensions=['.nii', '.nii.gz'], **kwargs)
+        
+        part_regex = re.compile('part-(mag|phase)')
+        inv_regex = re.compile('inv-([0-9]+)')
+        
+        parts = [part_regex.search(fn).group(1) if part_regex.search(fn) else None for fn in filenames]
+        inversion_idx = [int(inv_regex.search(fn).group(1)) if inv_regex.search(fn) else None for fn in filenames]
+        
+        # Check whether we have everything
+        df = pandas.DataFrame({'fn':filenames, 
+                               'inv':inversion_idx,
+                               'part':parts})
+        
+        tmp = df[np.in1d(df.inv, [1, 2]) & np.in1d(df.part, ['mag', 'phase'])]
+        check = (len(tmp) == 4) & (tmp.groupby(['inv', 'part']).size() == 1).all()
+        
+        if not check:
+            raise ValueError('Did not find exactly one Magnitude and phase image for two' \
+                             'inversions. Only found: %s' % tmp.fn.tolist())
+        
+        
+        df = df.set_index(['inv', 'part'])
+        
+        inv1 = df.loc[1, 'mag'].fn
+        inv1ph = df.loc[1, 'phase'].fn
+        inv2 = df.loc[2, 'mag'].fn
+        inv2ph = df.loc[2, 'phase'].fn
+        
+        meta_inv1 = layout.get_metadata(inv1)
+        meta_inv2 = layout.get_metadata(inv2)
+        
+        for key in ['InversionRepetitionTime', 'NumberShots', 'PartialFourier']:
+            if key in meta_inv1:
+                if meta_inv1[key] != meta_inv2[key]:
+                    raise ValueError('%s of INV1 and INV2 are different!' % key)        
+        
+        MPRAGE_tr = meta_inv1['InversionRepetitionTime']    
+        invtimesAB = [meta_inv1['InversionTime'], meta_inv2['InversionTime']]    
+        flipangleABdegree = [meta_inv1['FlipAngle'], meta_inv2['FlipAngle']]
+        
+        if 'PartialFourier' in meta_inv1.keys():
+            nZslices = meta_inv1['NumberShots'] * np.array([meta_inv1['PartialFourier'] -.5, 0.5])    
+        else: 
+            nZslices = meta_inv1['NumberShots']
+            
+        FLASH_tr = [meta_inv1['ReadoutRepetitionTime'], meta_inv2['ReadoutRepetitionTime']]
+        
+        B0 = meta_inv1.pop('FieldStrength', 7)
+        
+        return cls(MPRAGE_tr,
+                   invtimesAB,
+                   flipangleABdegree,
+                   nZslices,
+                   FLASH_tr,
+                   inv1=inv1,
+                   inv1ph=inv1ph,
+                   inv2=inv2,
+                   inv2ph=inv2ph)
 
 def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
