@@ -5,6 +5,7 @@ import logging
 from bids.grabbids import BIDSLayout
 import pandas
 import re
+import os
 
 
 class MP2RAGE(object):
@@ -366,6 +367,60 @@ class MP2RAGE(object):
                    inv1ph=inv1ph,
                    inv2=inv2,
                    inv2ph=inv2ph)
+
+
+    def write_files(self, path=None, prefix=None, compress=True, masked=False):
+        """ Write bias-field corrected T1-weighted image and T1 map to disk 
+        as Nifti-files.
+
+        If no filename or directory are given, the filename of INV1 is used
+        as a template.
+
+        The resulting files have the following names:
+         * <path>/<prefix>_T1.nii[.gz]
+         * <path>/<prefix>_T1w.nii[.gz]
+         * [<path>/<prefix>_T1_masked.nii[.gz]]
+         * [<path>/<prefix>_T1w_masked.nii[.gz]]
+        
+        Args:
+            path (str, Optional): Directory where files should be placed
+            prefix (str, Optional): Prefix of final filename (<path>/
+
+
+        Example:
+            >>> import pymp2rage
+            >>> mp2rage = pymp2rage.MP2RAGE.from_bids('/data/sourcedata', '01')
+            >>> mp2rage.write_files() # This write sub-01_T1w.nii.gz and 
+                                      # sub-01_T1map.nii.gz to 
+                                      # /data/sourcedata/sub-01/anat
+
+        """
+
+        if path is None:
+            path = os.path.dirname(self.inv1.get_filename())
+        
+
+        if prefix is None:
+            prefix = os.path.split(mp2rage.inv1.get_filename())[-1]
+
+            INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
+            part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
+            MP2RAGE_reg = re.compile('_MP2RAGE', re.IGNORECASE)
+
+            for reg in [INV_reg, part_reg, MP2RAGE_reg]:
+                prefix = reg.sub('', prefix)
+
+            os.path.splitext(prefix)[0]
+
+        ext = '.nii.gz' if compress else '.nii'
+
+        self.t1.to_filename(os.path.join(path, prefix+'_T1map'+ext))
+        self.t1w_uni.to_filename(os.path.join(path, prefix+'_T1w'+ext))
+
+        if masked:
+            self.t1_masked.to_filename(os.path.join(path, prefix+'_T1map_masked'+ext))
+            self.t1w_uni_masked.to_filename(os.path.join(path, prefix+'_T1w_masked'+ext))
+
 
 def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
