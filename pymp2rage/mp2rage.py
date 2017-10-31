@@ -401,7 +401,7 @@ class MP2RAGE(object):
         
 
         if prefix is None:
-            prefix = os.path.split(mp2rage.inv1.get_filename())[-1]
+            prefix = os.path.split(self.inv1.get_filename())[-1]
 
             INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
             part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
