@@ -1,1 +1,1 @@
-from .mp2ragefitter import MP2RAGE
+from .mp2rage import MP2RAGE
