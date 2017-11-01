@@ -432,6 +432,77 @@ class MP2RAGE(object):
             self.t1w_uni_masked.to_filename(t1w_uni_masked_filename)
 
 
+    def plot_MP2RAGEproperties(self):
+        
+        """ This function replicates the plot_MP2RAGEproperties-function
+        of the Matlab script by José Marques.
+        
+        It shows what effect different B1 differences as compared to intended
+        flip angle has on the resulting contrast between gray matter (GM),
+        white matter (WM), and cerebrospinal fluid (CSF).
+        
+        
+        see:
+        https://github.com/JosePMarques/MP2RAGE-related-scripts/blob/master/func/plotMP2RAGEproperties.m"""
+        
+        
+        Signalres = lambda x1, x2: x1*x2/(x2**2+x1**2)
+        noiseres = lambda x1, x2: ((x2**2-x1**2)**2 / (x2**2 + x1**2)**3 )**(0.5)
+
+        Contrast = []
+
+        if self.B0 == 3:
+            T1WM=0.85
+            T1GM=1.35
+            T1CSF=2.8
+            B1range=np.arange(0.8, 1.21, 0.1)
+        else:
+            T1WM=1.1
+            T1GM=1.85
+            T1CSF=3.9
+            B1range=np.arange(0.6, 1.41, 0.2)
+            
+        lines = []
+
+        for B1 in B1range:
+            
+            effective_flipangle = B1 * np.array(self.flipangleABdegree)
+            MP2RAGEamp, T1vector, IntensityBeforeComb = MP2RAGE_lookuptable(self.MPRAGE_tr, 
+                                                                            self.invtimesAB, effective_flipangle, 
+                                                                            self.nZslices, self.FLASH_tr, 
+                                                                            self.sequence, nimages=2,
+                                                                            inversion_efficiency=self.inversion_efficiency, 
+                                                                            B0=self.B0, all_data=1)
+            
+
+            lines.append(plt.plot(MP2RAGEamp, T1vector, color=np.array([0.5]*3)*B1, label='B1 = %.2f' % B1))
+            posWM= np.argmin(np.abs(T1WM - T1vector))
+            posGM= np.argmin(np.abs(T1GM - T1vector))
+            posCSF = np.argmin(np.abs(T1CSF- T1vector))
+
+            Signal= Signalres(IntensityBeforeComb[[posWM,posGM,posCSF],0], IntensityBeforeComb[[posWM,posGM,posCSF],1])
+            noise = noiseres(IntensityBeforeComb[[posWM,posGM,posCSF],0],IntensityBeforeComb[[posWM,posGM,posCSF],1])
+
+
+            Contrast.append(1000 * np.sum((Signal[1:]-Signal[:-1])/np.sqrt(noise[1:]**2+noise[:-1]**2))/np.sqrt(self.MPRAGE_tr))
+            
+            
+        plt.axhline(T1CSF, color='red')
+        plt.axhline(T1GM, color='green')
+        plt.axhline(T1WM, color='blue')
+        
+        plt.text(0.35,T1WM,'White Matter')
+        plt.text(0.35,T1GM,'Grey Matter')
+        
+        plt.text(-0.3,(T1CSF+T1GM)/2, 'Contrast over B1 range', va='center')
+        plt.text(0,(T1CSF+T1GM)/2,'\n'.join(['%.2f' % c for c in Contrast]), va='center')
+        
+        plt.legend(loc='upper right')
+        
+        
+        return Contrast
+
+
 def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
                           nimages=2,
