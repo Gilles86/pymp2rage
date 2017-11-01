@@ -410,7 +410,7 @@ class MP2RAGE(object):
             for reg in [INV_reg, part_reg, MP2RAGE_reg]:
                 prefix = reg.sub('', prefix)
 
-            os.path.splitext(prefix)[0]
+            prefix = os.path.splitext(prefix)[0]
 
         ext = '.nii.gz' if compress else '.nii'
 
