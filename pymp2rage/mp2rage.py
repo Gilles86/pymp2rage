@@ -6,6 +6,7 @@ from bids.grabbids import BIDSLayout
 import pandas
 import re
 import os
+import matplotlib.pyplot as plt
 
 
 class MP2RAGE(object):
@@ -432,7 +433,7 @@ class MP2RAGE(object):
             self.t1w_uni_masked.to_filename(t1w_uni_masked_filename)
 
 
-    def plot_MP2RAGEproperties(self):
+    def plot_B1_effects(self):
         
         """ This function replicates the plot_MP2RAGEproperties-function
         of the Matlab script by José Marques.
