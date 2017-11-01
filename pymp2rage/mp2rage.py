@@ -414,12 +414,22 @@ class MP2RAGE(object):
 
         ext = '.nii.gz' if compress else '.nii'
 
-        self.t1.to_filename(os.path.join(path, prefix+'_T1map'+ext))
-        self.t1w_uni.to_filename(os.path.join(path, prefix+'_T1w'+ext))
+        t1_filename = os.path.join(path, prefix+'_T1map'+ext)
+        print("Writing T1 map to %s" % t1_filename)
+        self.t1.to_filename(t1_filename)
+
+        t1w_uni_filename = os.path.join(path, prefix+'_T1w'+ext)
+        print("Writing bias-field corrected T1-weighted image to %s" % t1w_uni_filename)
+        self.t1w_uni.to_filename(t1w_uni_filename)
 
         if masked:
-            self.t1_masked.to_filename(os.path.join(path, prefix+'_T1map_masked'+ext))
-            self.t1w_uni_masked.to_filename(os.path.join(path, prefix+'_T1w_masked'+ext))
+            t1_masked_filename = os.path.join(path, prefix+'_T1map_masked'+ext)
+            print("Writing masked T1 map to %s" % t1_masked_filename)
+            self.t1_masked.to_filename(t1_masked_filename)
+
+            t1w_uni_masked_filename = os.path.join(path, prefix+'_T1w_masked'+ext)
+            print("Writing masked bias-field corrected T1-weighted image to %s" % t1w_uni_masked_filename)
+            self.t1w_uni_masked.to_filename(t1w_uni_masked_filename)
 
 
 def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
