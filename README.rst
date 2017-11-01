@@ -12,7 +12,9 @@ To install clone this repository and install it with git:
 
 Usage
 =====
-For some examples of its usage see the `example notebook <notebooks/MP2RAGE%20and%20T1%20fitting.ipynb>`_
+For some examples of its usage see: 
+ * `Bias-field correction, T1 estimation and masking <notebooks/MP2RAGE%20and%20T1%20fitting.ipynb>`_
+ * `Automatic processing of data organized according to BIDS-format <notebooks/Load%20and%20save%20to%20BIDs%20dataset.ipynb>`_
 
 Readthedocs
 ===========
