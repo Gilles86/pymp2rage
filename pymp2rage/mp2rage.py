@@ -655,8 +655,8 @@ class MP2RAGE(object):
         mask = (x != 0) & (y != 0) & ~np.isnan(y)
         
         # Interpolate T1-corrected map
-        t1c[mask] = f(x[mask], y[mask], grid=False) * 1000
-        self.t1_b1_corrected = nb.Nifti1Image(t1c, self.t1.affine)
+        t1c[mask] = f(x[mask], y[mask], grid=False)
+        self.t1_b1_corrected = nb.Nifti1Image(t1c * 1000, self.t1.affine)
         
         # *** Create corrected T1-weighted image ***
         Intensity, T1vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, 
