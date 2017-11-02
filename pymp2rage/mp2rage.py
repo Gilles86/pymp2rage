@@ -7,6 +7,7 @@ import pandas
 import re
 import os
 import matplotlib.pyplot as plt
+from scipy import interpolate
 
 
 class MP2RAGE(object):
@@ -42,7 +43,10 @@ class MP2RAGE(object):
                                                   Should always consist of one volume.
         inv2ph (filename or Nifti1Image, optional): Phase image of second inversion pulse.
                                                     Should always consist of one volume.
-
+        B1_fieldmap (filename or Nifti1Image, optional): B1 fieldmap that indicates the ratio or percentage
+                                                         of the real versus intended flip angle.
+                                                         Can be used to correct T1-weighted image and T1 map
+                                                         for B1+ inhomogenieties.
     Attributes:
         t1 (Nifti1Image): Quantitative T1 map
         t1_uni (Nifti1Image): Bias-field corrected T1-weighted map
@@ -65,7 +69,8 @@ class MP2RAGE(object):
                  inv1=None, 
                  inv1ph=None, 
                  inv2=None, 
-                 inv2ph=None): 
+                 inv2ph=None,
+                 B1_fieldmap=None): 
 
 
 
@@ -131,6 +136,14 @@ class MP2RAGE(object):
         self._t1_masked = None
         self._t1w_uni_masked = None
 
+        if B1_fieldmap is not None:
+            self.b1 = nb.load(B1_fieldmap)
+
+            self._t1_b1_corrected = None
+            self._t1w_uni_b1_corrected = None
+            self._t1_b1_corrected_masked = None
+            self._t1w_uni_b1_corrected_masked = None
+
 
     @property
     def t1w_uni(self):
@@ -138,6 +151,13 @@ class MP2RAGE(object):
             self.fit_t1w_uni()
 
         return self._t1w_uni
+
+    @property
+    def t1(self):
+        if self._t1 is None:
+            self.fit_t1()
+
+        return self._t1
 
     @property
     def t1(self):
@@ -503,6 +523,156 @@ class MP2RAGE(object):
         
         return Contrast
 
+    def correct_for_B1(self, B1=None, check_B1_range=True):
+        """ This function corrects the bias-field corrected T1-weighted image (`t1w_uni`-attribute)
+        and the quantitative T1 map (`t1`-attribute) for B1 inhomogenieties using a B1 field map. 
+        It assumes that the B1 field map is either a ratio of the real and intended 
+        flip angle (range of approximately 0 - 2) *or* the percentage of the real
+        vs intended flip angle (range of approximately 0 - 200). 
+        
+        If the B1 map has a different resolution, it is resampled to the resolution
+        of INV1 and INV2. *This function assumes your MP2RAGE images and the B1 map
+        are in the same space*.
+
+        If the B1 map is not immediately acquired after the MP2RAGE sequence, 
+        you should register the (magnitude image corresponding to) the B1 map to 
+        INV1/INV2 first. 
+
+        The corrected images are stored in the `t1w_uni_b1_corrected` and the
+        `t1_b1_corrected`-attributes as well as returned as a tuple
+        
+        
+        Args:
+            B1 (filename): B1 field map, either as a ratio or as a percentage. If 
+                           set to None, use self.B1 (set when the MP2RAGE class was 
+                           initialized).
+            check_B1_range (bool): whether the fuction should check whether the range
+                                   of the B1 fieldmap makes sense (centered at 1, range of
+                                   roughly 0-2 or 0-200).
+
+        Returns:
+            (tuple): tuple containing:
+
+                t1w_uni_b1_corrected: A T1-weighted image corrected for B1 inhomogenieties
+                t1_b1_corrected: A quantiative T1-weighted image corrected for B1 inhomogenieties
+
+        
+        """
+        
+        if B1 is None:
+            if not hasattr(self, 'b1'):
+                raise ValueError('Can not correct for B1 inhomogenieties without B1' \
+                                 'fieldmap')
+            B1 = self.b1
+        else:
+            B1 = nb.load(B1)
+            
+        if B1.shape != self.inv1.shape:
+            logging.warning('B1 map has different resolution from ' \
+                            'INV1, I am resampling the B1 map to match INV1...' \
+                            'Make sure they are in the same space ()')
+            B1 = image.resample_to_img(B1, self.inv1)
+        
+        if check_B1_range:
+            
+            if np.median(B1.get_data()) > 10:
+                logging.warning('B1 does not seem to be in range of 0-2. ' \
+                                'Assuming B1 is measured as a percentage, dividing by ' \
+                                '100...')
+                B1 = image.math_img('B1 / 100.', B1=B1)
+
+
+            if (np.abs(np.median(B1.get_data()) - 1) > .25):
+                raise ValueError('Median of B1 is far from 1. The scale of this B1 map '\
+                                 'is most likely wrong.')
+            
+
+
+        # creates a lookup table of MP2RAGE intensities as a function of B1 and T1    
+        B1_vector = np.arange(0.005, 1.9, 0.05)
+        T1_vector =  np.arange(0.5, 5.2001, 0.05)
+        
+        MP2RAGEmatrix = np.zeros((len(B1_vector), len(T1_vector)))
+            
+        for k, b1val in enumerate(B1_vector):
+            
+            effective_flipangle = b1val * np.array(self.flipangleABdegree)
+            
+            Intensity, T1vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, 
+                                                         self.invtimesAB, effective_flipangle, 
+                                                         self.nZslices, self.FLASH_tr, 
+                                                         self.sequence, nimages=2,
+                                                         inversion_efficiency=self.inversion_efficiency, 
+                                                         B0=self.B0,
+                                                         all_data=0)
+            
+    #         f = interpolate.interp1d(np.sort(T1vector), Intensity[np.argsort(T1vector)],
+            f = interpolate.interp1d(T1vector, Intensity, 
+                                     bounds_error=False, fill_value=np.nan, )
+            MP2RAGEmatrix[k, :] = f(T1_vector)
+        
+    #     return MP2RAGEmatrix
+
+        # make the matrix  MP2RAGEMatrix into T1_matrix(B1,ratio)
+        npoints=40;
+        MP2RAGE_vector=np.linspace(-0.5,0.5,npoints);
+        
+        T1matrix = np.zeros((len(B1_vector), npoints))
+
+        for k, b1val in enumerate(B1_vector):
+            
+            
+            if np.isnan(MP2RAGEmatrix[k,:]).any():
+
+                signal = MP2RAGEmatrix[k,:].copy()        
+                signal[np.isnan(signal)] = np.linspace(-0.5,-1,np.isnan(signal).sum())
+
+                f = interpolate.interp1d(signal, T1_vector, bounds_error=False, fill_value='extrapolate')#fill_value='extrapolate')
+
+                T1matrix[k,:] = f(MP2RAGE_vector)
+                
+            else:   
+                signal = MP2RAGEmatrix[k,:]
+                f = interpolate.interp1d(np.sort(MP2RAGEmatrix[k,:]), T1_vector[np.argsort(MP2RAGEmatrix[k,:])], 'cubic', 
+                                         bounds_error=False, fill_value='extrapolate')
+                T1matrix[k, :] = f(MP2RAGE_vector)
+                
+                 
+        # *** Create correted T1 map ***
+        # Make interpolation function that gives T1, given B1 and T1w signal
+        f = interpolate.RectBivariateSpline(B1_vector, MP2RAGE_vector, T1matrix, kx=1, ky=1)
+        
+        
+        x = B1.get_data()    
+        
+        # Rescale T1w signal to [-.5, .5]
+        y = self.t1w_uni.get_data() / 4095 - .5
+        
+        # Precache corrected T1 map
+        t1c = np.zeros_like(x)
+        
+        # Make a mask that excludes non-interesting voxels
+        mask = (x != 0) & (y != 0) & ~np.isnan(y)
+        
+        # Interpolate T1-corrected map
+        t1c[mask] = f(x[mask], y[mask], grid=False) * 1000
+        self.t1_b1_corrected = nb.Nifti1Image(t1c, self.t1.affine)
+        
+        # *** Create corrected T1-weighted image ***
+        Intensity, T1vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, 
+                                                     self.invtimesAB, self.flipangleABdegree, 
+                                                     self.nZslices, self.FLASH_tr, 
+                                                     self.sequence, nimages=2,
+                                                     inversion_efficiency=self.inversion_efficiency, 
+                                                     B0=self.B0,
+                                                     all_data=0)
+        
+        f = interpolate.interp1d(T1vector, Intensity, bounds_error=False, fill_value=-0.5)
+        t1w_uni_corrected = (f(self.t1_b1_corrected.get_data()) + .5) * 4095    
+        self.t1w_uni_b1_corrected = nb.Nifti1Image(t1w_uni_corrected, self.t1w_uni.affine)
+        
+        return self.t1_b1_corrected, self.t1w_uni_b1_corrected
+
 
 def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
@@ -602,7 +772,8 @@ def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices,
     return signal        
 
 def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLASH_tr, 
-                     sequence, nimages=2, B0=7, M0=1, inversion_efficiency=0.96, all_data=0):
+                     sequence, nimages=2, B0=7, M0=1, inversion_efficiency=0.96, all_data=0,
+                        T1vector=None):
 # first extra parameter is the inversion efficiency
 # second extra parameter is the alldata
 #   if ==1 all data is shown
@@ -615,7 +786,8 @@ def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLAS
 
     flipanglea, flipangleb = flipangleABdegree
 
-    T1vector = np.arange(0.05, 4.05, 0.05)
+    if T1vector is None:
+        T1vector = np.arange(0.05, 4.05, 0.05)
 
     FLASH_tr = np.atleast_1d(FLASH_tr)
 
