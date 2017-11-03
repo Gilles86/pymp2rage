@@ -526,6 +526,7 @@ class MP2RAGE(object):
     def correct_for_B1(self, B1=None, check_B1_range=True):
         """ This function corrects the bias-field corrected T1-weighted image (`t1w_uni`-attribute)
         and the quantitative T1 map (`t1`-attribute) for B1 inhomogenieties using a B1 field map. 
+        (see Marques and Gruetter, 2013).
         It assumes that the B1 field map is either a ratio of the real and intended 
         flip angle (range of approximately 0 - 2) *or* the percentage of the real
         vs intended flip angle (range of approximately 0 - 200). 
