@@ -452,6 +452,17 @@ class MP2RAGE(object):
             print("Writing masked bias-field corrected T1-weighted image to %s" % t1w_uni_masked_filename)
             self.t1w_uni_masked.to_filename(t1w_uni_masked_filename)
 
+        if hasattr(self, 't1_b1_corrected'):
+            t1_b1_corrected_filename = os.path.join(path, prefix+'_T1map_b1corrected.nii.gz')
+            print('Writing B1-corrected T1 map to %s' % t1_b1_corrected_filename)
+            self.t1_b1_corrected.to_filename(t1_b1_corrected_filename)
+
+        if hasattr(self, 't1w_uni_b1_corrected'):
+            t1w_uni_b1_corrected_filename = os.path.join(path, prefix+'_T1w_b1corrected.nii.gz')
+            print('Writing B1-corrected T1-weighted image to %s' % t1w_uni_b1_corrected_filename)
+            self.t1w_uni_b1_corrected.to_filename(t1w_uni_b1_corrected_filename)
+
+
 
     def plot_B1_effects(self):
         
