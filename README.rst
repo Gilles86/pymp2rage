@@ -15,6 +15,7 @@ Usage
 For some examples of its usage see: 
  * `Bias-field correction, T1 estimation and masking <notebooks/MP2RAGE%20and%20T1%20fitting.ipynb>`_
  * `Automatic processing of data organized according to BIDS-format <notebooks/Load%20and%20save%20to%20BIDs%20dataset.ipynb>`_
+ * `Correction for B1 transmit field inhomogenieties using a B1 fieldmap <notebooks/B1%20correction.ipynb>`_
 
 Readthedocs
 ===========
