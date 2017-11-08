@@ -299,7 +299,7 @@ class MP2RAGE(object):
              {
                 "InversionTime":0.8,
                 "FlipAngle":5,
-                "ReadoutRepetitionTime":0.0062,
+                "ExcitationRepetitionTime":0.0062,
                 "InversionRepetitionTime":5.5,
                 "NumberShots":159
              }
@@ -308,7 +308,7 @@ class MP2RAGE(object):
              {
                 "InversionTime":2.7,
                 "FlipAngle":7,
-                "ReadoutRepetitionTime":0.0062,
+                "ExcitationRepetitionTime":0.0062,
                 "InversionRepetitionTime":5.5,
                 "NumberShots":159
              }
@@ -375,7 +375,7 @@ class MP2RAGE(object):
         else: 
             nZslices = meta_inv1['NumberShots']
             
-        FLASH_tr = [meta_inv1['ReadoutRepetitionTime'], meta_inv2['ReadoutRepetitionTime']]
+        FLASH_tr = [meta_inv1['ExcitationRepetitionTime'], meta_inv2['ExcitationRepetitionTime']]
         
         B0 = meta_inv1.pop('FieldStrength', 7)
         
