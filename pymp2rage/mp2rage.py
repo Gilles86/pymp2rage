@@ -786,6 +786,61 @@ def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices,
 
     return signal        
 
+class MEMP2RAGE(MP2RAGE):
+    """ This is an extension of the MP2RAGE-class that can deal with multi-echo
+    data. """
+
+    def __init__(self, 
+                 echo_times,
+                 MPRAGE_tr=None,
+                 invtimesAB=None,
+                 flipangleABdegree=None,
+                 nZslices=None,
+                 FLASH_tr=None,
+                 sequence='normal',
+                 inversion_efficiency=0.96,
+                 B0=7,
+                 inv1=None, 
+                 inv1ph=None, 
+                 inv2=None, 
+                 inv2ph=None,
+                 B1_fieldmap=None): 
+
+        
+        if type(inv2) is list:
+            inv2 = image.concat_imgs(inv2)
+
+        if type(inv2ph) is list:
+            inv2ph = image.concat_imgs(inv2ph)
+        
+        self.t2w_echoes = inv2
+
+        if inv2ph is not None:
+            self.t2w_echoes_phase = inv2ph
+
+        if self.t2w_echoes.shape[-1] != len(echo_times):
+            raise ValueError('Length of echo_times should correspond to the number of echoes'\
+                             'in INV2')
+
+        
+        inv2 = image.index_img(self.t2w_echoes, 0)
+        inv2ph = image.index_img(self.t2w_echoes_phase, 0)
+
+        super(MEMP2RAGE, self).__init__(MPRAGE_tr=MPRAGE_tr,
+                                        invtimesAB=invtimesAB,
+                                        flipangleABdegree=flipangleABdegree,
+                                        nZslices=nZslices,
+                                        FLASH_tr=FLASH_tr,
+                                        sequence=sequence,
+                                        inversion_efficiency=inversion_efficiency,
+                                        B0=B0,
+                                        inv1=inv1, 
+                                        inv1ph=inv1ph, 
+                                        inv2=inv2, 
+                                        inv2ph=inv2ph,
+                                        B1_fieldmap=B1_fieldmap) 
+
+
 def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLASH_tr, 
                      sequence, nimages=2, B0=7, M0=1, inversion_efficiency=0.96, all_data=0,
                         T1vector=None):
