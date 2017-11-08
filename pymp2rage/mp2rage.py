@@ -689,6 +689,111 @@ class MP2RAGE(object):
         return self.t1_b1_corrected, self.t1w_uni_b1_corrected
 
 
+class MEMP2RAGE(MP2RAGE):
+    """ This is an extension of the MP2RAGE-class that can deal with multi-echo
+    data. """
+
+    def __init__(self, 
+                 echo_times,
+                 MPRAGE_tr=None,
+                 invtimesAB=None,
+                 flipangleABdegree=None,
+                 nZslices=None,
+                 FLASH_tr=None,
+                 sequence='normal',
+                 inversion_efficiency=0.96,
+                 B0=7,
+                 inv1=None, 
+                 inv1ph=None, 
+                 inv2=None, 
+                 inv2ph=None,
+                 B1_fieldmap=None): 
+
+        
+        if type(inv2) is list:
+            inv2 = image.concat_imgs(inv2)
+
+        if type(inv2ph) is list:
+            inv2ph = image.concat_imgs(inv2ph)
+        
+        self.t2w_echoes = inv2
+        self.inv2_echo_times = echo_times
+        self.n_echoes = len(echo_times)
+
+        if inv2ph is not None:
+            self.t2w_echoes_phase = inv2ph
+
+        if self.t2w_echoes.shape[-1] != self.n_echoes:
+            raise ValueError('Length of echo_times should correspond to the number of echoes'\
+                             'in INV2')
+
+        
+        inv2 = image.index_img(self.t2w_echoes, 0)
+        inv2ph = image.index_img(self.t2w_echoes_phase, 0)
+
+
+        self._s0 = None
+        self._t2star = None
+        self._t2w = None
+
+        super(MEMP2RAGE, self).__init__(MPRAGE_tr=MPRAGE_tr,
+                                        invtimesAB=invtimesAB,
+                                        flipangleABdegree=flipangleABdegree,
+                                        nZslices=nZslices,
+                                        FLASH_tr=FLASH_tr,
+                                        sequence=sequence,
+                                        inversion_efficiency=inversion_efficiency,
+                                        B0=B0,
+                                        inv1=inv1, 
+                                        inv1ph=inv1ph, 
+                                        inv2=inv2, 
+                                        inv2ph=inv2ph,
+                                        B1_fieldmap=B1_fieldmap) 
+
+    def fit_t2star(self, min_t2star=0, max_t2star=300):
+
+        tmp = np.log(self.t2w_echoes.get_data())
+        idx = (tmp > 0).all(-1)
+
+        s0 = np.zeros(self.t2w_echoes.shape[:3])
+        t2star = np.zeros(self.t2w_echoes.shape[:3])
+
+        x = np.concatenate((np.ones((self.n_echoes, 1)), -self.inv2_echo_times[..., np.newaxis]), 1)
+
+        beta, _, _, _ = np.linalg.lstsq(x, tmp[idx].T)
+
+        s0[idx] = np.exp(beta[0])
+        t2star[idx] = 1./beta[1]
+
+        t2star[t2star < min_t2star] = min_t2star
+        t2star[t2star > max_t2star] = max_t2star
+
+        self._s0 = image.new_img_like(self.t2w_echoes, s0)
+        self._t2star = image.new_img_like(self.t2w_echoes, t2star)
+
+        return self._t2star
+
+    @property
+    def t2star(self):
+        if self._t2star is None:
+            self.fit_t2star()
+
+        return self._t2star
+
+    @property
+    def s0(self):
+        if self._s0 is None:
+            self.fit_t2star()
+
+        return self._s0
+
+    @property
+    def t2w(self):
+        if self._t2w is None:
+            self._t2w = image.mean_img(self.t2w_echoes)
+
+        return self._t2w
+
 def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
                           FLASH_tr, flipangle, sequence, T1s, 
                           nimages=2,
@@ -785,60 +890,6 @@ def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices,
         signal[m] = sinalfa[m]*temp
 
     return signal        
-
-class MEMP2RAGE(MP2RAGE):
-    """ This is an extension of the MP2RAGE-class that can deal with multi-echo
-    data. """
-
-    def __init__(self, 
-                 echo_times,
-                 MPRAGE_tr=None,
-                 invtimesAB=None,
-                 flipangleABdegree=None,
-                 nZslices=None,
-                 FLASH_tr=None,
-                 sequence='normal',
-                 inversion_efficiency=0.96,
-                 B0=7,
-                 inv1=None, 
-                 inv1ph=None, 
-                 inv2=None, 
-                 inv2ph=None,
-                 B1_fieldmap=None): 
-
-        
-        if type(inv2) is list:
-            inv2 = image.concat_imgs(inv2)
-
-        if type(inv2ph) is list:
-            inv2ph = image.concat_imgs(inv2ph)
-        
-        self.t2w_echoes = inv2
-
-        if inv2ph is not None:
-            self.t2w_echoes_phase = inv2ph
-
-        if self.t2w_echoes.shape[-1] != len(echo_times):
-            raise ValueError('Length of echo_times should correspond to the number of echoes'\
-                             'in INV2')
-
-        
-        inv2 = image.index_img(self.t2w_echoes, 0)
-        inv2ph = image.index_img(self.t2w_echoes_phase, 0)
-
-        super(MEMP2RAGE, self).__init__(MPRAGE_tr=MPRAGE_tr,
-                                        invtimesAB=invtimesAB,
-                                        flipangleABdegree=flipangleABdegree,
-                                        nZslices=nZslices,
-                                        FLASH_tr=FLASH_tr,
-                                        sequence=sequence,
-                                        inversion_efficiency=inversion_efficiency,
-                                        B0=B0,
-                                        inv1=inv1, 
-                                        inv1ph=inv1ph, 
-                                        inv2=inv2, 
-                                        inv2ph=inv2ph,
-                                        B1_fieldmap=B1_fieldmap) 
 
 
 def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLASH_tr, 
