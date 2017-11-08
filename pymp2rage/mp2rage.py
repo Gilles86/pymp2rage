@@ -683,7 +683,7 @@ class MP2RAGE(object):
                                                      all_data=0)
         
         f = interpolate.interp1d(T1vector, Intensity, bounds_error=False, fill_value=-0.5)
-        t1w_uni_corrected = (f(self.t1_b1_corrected.get_data()) + .5) * 4095    
+        t1w_uni_corrected = (f(t1c) + .5) * 4095    
         self.t1w_uni_b1_corrected = nb.Nifti1Image(t1w_uni_corrected, self.t1w_uni.affine)
         
         return self.t1_b1_corrected, self.t1w_uni_b1_corrected
