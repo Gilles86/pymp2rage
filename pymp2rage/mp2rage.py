@@ -835,7 +835,7 @@ class MEMP2RAGE(MP2RAGE):
         print("Writing T2 star map to %s" % t2starmap_filename)
         self.t2starmap.to_filename(t2starmap_filename)
 
-        s0_filename = os.path.join(path, prefix+'_SOmap'+ext)
+        s0_filename = os.path.join(path, prefix+'_S0map'+ext)
         print("Writing S0 map to %s" % s0_filename)
         self.s0.to_filename(s0_filename)
 
