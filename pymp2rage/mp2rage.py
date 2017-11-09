@@ -806,6 +806,40 @@ class MEMP2RAGE(MP2RAGE):
 
         return self._t2starw
 
+
+    def write_files(self, path=None, prefix=None, compress=True, *args, **kwargs):
+
+        super(MEMP2RAGE, self).write_files(path, prefix, compress, *args, **kwargs)
+
+        if path is None:
+            path = os.path.dirname(self.inv1.get_filename())
+
+        if prefix is None:
+            prefix = os.path.split(self.inv1.get_filename())[-1]
+
+            INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
+            part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
+            MP2RAGE_reg = re.compile('_(ME)?MP2RAGE', re.IGNORECASE)
+
+            for reg in [INV_reg, part_reg, MP2RAGE_reg]:
+                prefix = reg.sub('', prefix)
+
+            prefix = os.path.splitext(prefix)[0]
+
+        ext = '.nii.gz' if compress else '.nii'
+        t2starw_filename = os.path.join(path, prefix+'_T2starw'+ext)
+        print("Writing T2 star-weighted image to %s" % t2starw_filename)
+        self.t2starw.to_filename(t2starw_filename)
+
+        t2starmap_filename = os.path.join(path, prefix+'_T2starmap'+ext)
+        print("Writing T2 star map to %s" % t2starmap_filename)
+        self.t2starmap.to_filename(t2starmap_filename)
+
+        s0_filename = os.path.join(path, prefix+'_SOmap'+ext)
+        print("Writing S0 map to %s" % s0_filename)
+        self.s0.to_filename(s0_filename)
+
+
     @classmethod
     def from_bids(cls, source_dir, subject, **kwargs):
     
