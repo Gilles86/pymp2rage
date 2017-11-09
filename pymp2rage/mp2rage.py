@@ -430,7 +430,7 @@ class MP2RAGE(object):
 
             INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
             part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
-            MP2RAGE_reg = re.compile('_MP2RAGE', re.IGNORECASE)
+            MP2RAGE_reg = re.compile('_?(ME)MP2RAGE', re.IGNORECASE)
 
             for reg in [INV_reg, part_reg, MP2RAGE_reg]:
                 prefix = reg.sub('', prefix)
