@@ -718,7 +718,7 @@ class MEMP2RAGE(MP2RAGE):
             inv2ph = image.concat_imgs(inv2ph)
         
         self.t2w_echoes = inv2
-        self.inv2_echo_times = echo_times
+        self.inv2_echo_times = np.array(echo_times)
         self.n_echoes = len(echo_times)
 
         if inv2ph is not None:
