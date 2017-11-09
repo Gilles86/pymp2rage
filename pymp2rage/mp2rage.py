@@ -795,159 +795,184 @@ class MEMP2RAGE(MP2RAGE):
 
         return self._t2w
 
-def MPRAGEfunc_varyingTR(MPRAGE_tr, inversiontimes, nZslices, 
-                          FLASH_tr, flipangle, sequence, T1s, 
-                          nimages=2,
-                          B0=7, M0=1, inversionefficiency=0.96):
+    @classmethod
+    def from_bids(cls, source_dir, subject, **kwargs):
+    
+        """ Creates a MEMP2RAGE-object from a properly organized BIDS-folder.
 
-    if sequence == 'normal':
-        normalsequence = True
-        waterexcitation = False
-    else:
-        normalsequence = False
-        waterexcitation = True
+        The folder should be organized similar to this example:
 
-    nZslices = np.atleast_1d(nZslices)
-    inversiontimes = np.atleast_1d(inversiontimes)
-    FLASH_tr = np.atleast_1d(FLASH_tr)
-    flipangle = np.atleast_1d(flipangle)
+        sub-01/anat/:
+        # The first inversion time volumes
+         * sub-01_inv-1_part-mag_MEMP2RAGE.nii
+         * sub-01_inv-1_part-phase_MEMP2RAGE.nii
+         
+        # The four echoes of the second inversion (magnitude)
+         * sub-01_inv-2_part-mag_echo-1_MEMP2RAGE.nii
+         * sub-01_inv-2_part-mag_echo-2_MEMP2RAGE.nii
+         * sub-01_inv-2_part-mag_echo-3_MEMP2RAGE.nii
+         * sub-01_inv-2_part-mag_echo-4_MEMP2RAGE.nii
+         
+        # The four echoes of the second inversion (phase)         
+         * sub-01_inv-2_part-phase_echo-1_MEMP2RAGE.nii
+         * sub-01_inv-2_part-phase_echo-2_MEMP2RAGE.nii
+         * sub-01_inv-2_part-phase_echo-3_MEMP2RAGE.nii
+         * sub-01_inv-2_part-phase_echo-4_MEMP2RAGE.nii
 
-    FatWaterCSppm=3.3 # ppm
-    gamma=42.576 #MHz/T
-    pulseSpace=1/2/(FatWaterCSppm*B0*gamma) #
+        # The json describing the parameters of the first inversion pulse
+         * sub-01_inv-1_MEMP2RAGE.json
+         
+        # The json describing the parameters of the second inversion pulse
+         * sub-01_inv-2_echo-1_MEMP2RAGE.json
+         * sub-01_inv-2_echo-2_MEMP2RAGE.json
+         * sub-01_inv-2_echo-3_MEMP2RAGE.json
+         * sub-01_inv-2_echo-4_MEMP2RAGE.json
 
-    fliprad = flipangle/180*np.pi
+         The JSON-files should contain all the necessary MP2RAGE sequence parameters
+         and should look something like this:
 
-    if len(fliprad) != nimages:
-        fliprad = np.repeat(fliprad, nimages)
+         sub-01/anat/sub-01_inv-1_MEMP2RAGE.json:
+             {
+                "InversionTime":0.67,
+                "FlipAngle":7,
+                "ExcitationRepetitionTime":0.0062,
+                "InversionRepetitionTime":6.723,
+                "NumberShots":150
+             }
 
-    if len(FLASH_tr) != nimages:
-        FLASH_tr = np.repeat(FLASH_tr, nimages)        
+         sub-01/anat/sub-01_inv-2_echo-1_MEMP2RAGE.json:
+             {
+                "InversionTime":3.855,
+                "FlipAngle":6,
+                "ExcitationRepetitionTime":0.0320,
+                "InversionRepetitionTime":6.723,
+                "NumberShots":150,
+                "EchoTime": 6.0
+             }
+             
+         sub-01/anat/sub-01_inv-2_echo-2_MEMP2RAGE.json:
+             {
+                "InversionTime":3.855,
+                "FlipAngle":6,
+                "ExcitationRepetitionTime":0.0320,
+                "InversionRepetitionTime":6.723,
+                "NumberShots":150,
+                "EchoTime": 14.5
+             }
+             
+         sub-01/anat/sub-01_inv-2_echo-3_MEMP2RAGE.json:
+             {
+                "InversionTime":3.855,
+                "FlipAngle":6,
+                "ExcitationRepetitionTime":0.0320,
+                "InversionRepetitionTime":6.723,
+                "NumberShots":150,
+                "EchoTime": 23
+             }
+             
+         sub-01/anat/sub-01_inv-2_echo-4_MEMP2RAGE.json:
+             {
+                "InversionTime":3.855,
+                "FlipAngle":6,
+                "ExcitationRepetitionTime":0.0320,
+                "InversionRepetitionTime":6.723,
+                "NumberShots":150,
+                "EchoTime": 31.5
+             }             
 
-    if len(nZslices) == 2:
-        nZ_bef=nZslices[0]
-        nZ_aft=nZslices[1]
-        nZslices=sum(nZslices);
+        A MP2RAGE-object can now be created from the BIDS folder as follows:
 
-    elif len(nZslices)==1:
-        nZ_bef=nZslices / 2
-        nZ_aft=nZslices / 2
+        Example:
+            >>> import pymp2rage
+            >>> mp2rage = pymp2rage.MEMP2RAGE.from_bids('/data/sourcedata/', '01')
 
-    if normalsequence:
-        E_1 = np.exp(-FLASH_tr / T1s)
-        TA = nZslices * FLASH_tr
-        TA_bef = nZ_bef * FLASH_tr
-        TA_aft = nZ_aft * FLASH_tr
+        Args:
+            source_dir (BIDS dir): directory containing all necessary files
+            subject (str): subject identifier
+            **kwargs: additional keywords that are forwarded to get-function of
+            BIDSLayout. For example `ses` could be used to select specific session.
+        """
+        
+        layout = BIDSLayout(source_dir)
+        
+        filenames = layout.get(subject=subject, return_type='file', type='MEMP2RAGE', extensions=['.nii', '.nii.gz'], **kwargs)
+        
+        part_regex = re.compile('part-(mag|phase)')
+        inv_regex = re.compile('inv-([0-9]+)')
+        echo_regex = re.compile('echo-([0-9]+)')
+        
+        parts = [part_regex.search(fn).group(1) if part_regex.search(fn) else None for fn in filenames]
+        inversion_idx = [int(inv_regex.search(fn).group(1)) if inv_regex.search(fn) else None for fn in filenames]
+        echo_idx = [int(echo_regex.search(fn).group(1)) if echo_regex.search(fn) else 1 for fn in filenames]
+        
+        # Check whether we have everything
+        df = pandas.DataFrame({'fn':filenames, 
+                               'inv':inversion_idx,
+                               'part':parts,
+                               'echo':echo_idx})
+        
+        tmp = df[np.in1d(df.inv, [1, 2]) & np.in1d(df.part, ['mag', 'phase']) & ((df.echo == 1))]
+        
 
-        TD = np.zeros(nimages+1)
-        E_TD = np.zeros(nimages+1)
+        check = (len(tmp) == 4) & (tmp.groupby(['inv', 'part']).size() == 1).all()
+        
+        if not check:
+            raise ValueError('Did not find exactly one Magnitude and phase image for two' \
+                             'inversions. Only found: %s' % tmp.fn.tolist())
+        
+        
+        df = df.set_index(['inv', 'part', 'echo'])
+        df.sort_index(inplace=True)
+        
+        inv1 = df.loc[1, 'mag', 1].fn
+        inv1ph = df.loc[1, 'phase', 1].fn
+        inv2 = df.loc[2, 'mag', 1].fn
+        inv2ph = df.loc[2, 'phase', 1].fn
 
-        TD[0] = inversiontimes[0]-TA_bef[0]
-        E_TD[0] = np.exp(-TD[0] / T1s)
-
-        TD[nimages] =MPRAGE_tr - inversiontimes[nimages-1] - TA_aft[-1]
-        E_TD[nimages] = np.exp(-TD[nimages] / T1s)
-
-
-        if nimages > 1:
-            TD[1:nimages] = inversiontimes[1:] - inversiontimes[:-1] - (TA_aft[:-1] + TA_bef[1:])
-            E_TD[1:nimages] = np.exp(-TD[1:nimages] / T1s)
-
-        cosalfaE1 = np.cos(fliprad) * E_1    
-        oneminusE1 = 1 - E_1
-        sinalfa = np.sin(fliprad)
-
-    MZsteadystate = 1. / (1 + inversionefficiency * (np.prod(cosalfaE1))**(nZslices) * np.prod(E_TD))
-
-    MZsteadystatenumerator = M0 * (1 - E_TD[0])
-
-
-    for i in np.arange(nimages):
-        MZsteadystatenumerator = MZsteadystatenumerator*cosalfaE1[i]**nZslices + M0 * (1-E_1[i]) * (1-(cosalfaE1[i])**nZslices) / (1-cosalfaE1[i])        
-        MZsteadystatenumerator = MZsteadystatenumerator*E_TD[i+1]+M0*(1-E_TD[i+1])
-
-    MZsteadystate = MZsteadystate * MZsteadystatenumerator
-
-
-    signal = np.zeros(nimages)
-
-    m = 0
-    temp = (-inversionefficiency*MZsteadystate*E_TD[m] + M0 * (1-E_TD[m])) * (cosalfaE1[m])**(nZ_bef) + \
-           M0 * (1 - E_1[m]) * (1 - (cosalfaE1[m])**(nZ_bef)) \
-           / (1-(cosalfaE1[m]))
-
-    signal[0] = sinalfa[m] * temp
-
-
-    for m in range(1, nimages):
-        temp = temp * (cosalfaE1[m-1])**(nZ_aft) + \
-               M0 * (1 - E_1[m-1]) * (1 - (cosalfaE1[m-1])**(nZ_aft)) \
-              / (1-(cosalfaE1[m-1]))
-
-        temp = (temp * E_TD[m] + M0 * (1 - E_TD[m])) * (cosalfaE1[m])**(nZ_bef) + \
-               M0 * (1-E_1[m]) * (1 - (cosalfaE1[m])**(nZ_bef)) \
-               / (1 - (cosalfaE1[m]))
-
-        signal[m] = sinalfa[m]*temp
-
-    return signal        
-
-
-def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLASH_tr, 
-                     sequence, nimages=2, B0=7, M0=1, inversion_efficiency=0.96, all_data=0,
-                        T1vector=None):
-# first extra parameter is the inversion efficiency
-# second extra parameter is the alldata
-#   if ==1 all data is shown
-#   if ==0 only the monotonic part is shown
-
-
-
-    invtimesa, invtimesb = invtimesAB
-    B1vector = 1
-
-    flipanglea, flipangleb = flipangleABdegree
-
-    if T1vector is None:
-        T1vector = np.arange(0.05, 4.05, 0.05)
-
-    FLASH_tr = np.atleast_1d(FLASH_tr)
-
-    if len(FLASH_tr) == 1:
-        FLASH_tr = np.repeat(FLASH_tr, nimages)
-
-
-    nZslices = np.atleast_1d(nZslices)
-
-    if len(nZslices)==2:        
-        nZ_bef, nZ_aft = nZslices
-        nZslices2 = np.sum(nZslices)
-
-    elif len(nZslices) == 1:
-        nZ_bef = nZ_aft = nZslices / 2
-        nZslices2 = nZslices
-
-    Signal = np.zeros((len(T1vector), 2))
-
-    for j, T1 in enumerate(T1vector):
-        if ((np.diff(invtimesAB) >= nZ_bef * FLASH_tr[1] + nZ_aft*FLASH_tr[0]) and \
-           (invtimesa >= nZ_bef*FLASH_tr[0]) and \
-           (invtimesb <= (MPRAGE_tr-nZ_aft*FLASH_tr[1]))):
-            Signal[j, :] = MPRAGEfunc_varyingTR(MPRAGE_tr, invtimesAB, nZslices2, FLASH_tr, [flipanglea, flipangleb], sequence, T1, nimages, B0, M0, inversion_efficiency)
-
-
-        else:
-            Signal[j,:] = 0
-
-
-    Intensity = np.squeeze(np.real(Signal[..., 0] * np.conj(Signal[..., 1])) / (np.abs(Signal[... ,0])**2 + np.abs(Signal[...,1])**2))
-
-    if all_data == 0:
-        minindex = np.argmax(Intensity)
-        maxindex = np.argmin(Intensity)
-        Intensity = Intensity[minindex:maxindex+1]
-        T1vector = T1vector[minindex:maxindex+1]
-        IntensityBeforeComb = Signal[minindex:maxindex+1]
-    else:
-        IntensityBeforeComb = Signal
-    return Intensity, T1vector, IntensityBeforeComb
+        print('Found following files for MP2RAGE:\n * inv1, magnitude: {inv1}\n * inv1, phase: {inv1ph}'\
+              '\n * inv2, magnitude: {inv2}\n * inv2, phase: {inv2ph}'.format(**locals()))
+        
+        
+        echo_indices = df.index.get_level_values(2).unique()
+        print('Found four echoes:')
+        for echo in echo_indices:
+            print(' * {}'.format(df.loc[2, 'mag', echo].fn))
+        
+        meta_inv1 = layout.get_metadata(inv1)
+        meta_inv2 = layout.get_metadata(inv2)
+        
+        for key in ['InversionRepetitionTime', 'NumberShots', 'PartialFourier']:
+            if key in meta_inv1:
+                if meta_inv1[key] != meta_inv2[key]:
+                    raise ValueError('%s of INV1 and INV2 are different!' % key)        
+        
+        MPRAGE_tr = meta_inv1['InversionRepetitionTime']    
+        invtimesAB = [meta_inv1['InversionTime'], meta_inv2['InversionTime']]    
+        flipangleABdegree = [meta_inv1['FlipAngle'], meta_inv2['FlipAngle']]
+        
+        if 'PartialFourier' in meta_inv1.keys():
+            nZslices = meta_inv1['NumberShots'] * np.array([meta_inv1['PartialFourier'] -.5, 0.5])    
+        else: 
+            nZslices = meta_inv1['NumberShots']
+            
+        FLASH_tr = [meta_inv1['ExcitationRepetitionTime'], meta_inv2['ExcitationRepetitionTime']]
+        
+        B0 = meta_inv1.pop('FieldStrength', 7)
+        
+        
+        echo_times = []
+            
+        for echo in echo_indices:
+            te = layout.get_metadata(df.loc[2, 'mag', echo].fn)['EchoTime']
+            echo_times.append(te)
+        
+        return cls(echo_times,
+                   MPRAGE_tr,
+                   invtimesAB,
+                   flipangleABdegree,
+                   nZslices,
+                   FLASH_tr,
+                   inv1=inv1,
+                   inv1ph=inv1ph,
+                   inv2=df.loc[2, 'mag'].fn.tolist(),
+                   inv2ph=df.loc[2, 'phase'].fn.tolist())
