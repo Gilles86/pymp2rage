@@ -8,6 +8,7 @@ import re
 import os
 import matplotlib.pyplot as plt
 from scipy import interpolate
+from .utils import MPRAGEfunc_varyingTR, MP2RAGE_lookuptable
 
 
 class MP2RAGE(object):
