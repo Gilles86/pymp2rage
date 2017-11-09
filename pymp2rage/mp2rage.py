@@ -765,12 +765,16 @@ class MEMP2RAGE(MP2RAGE):
         beta, _, _, _ = np.linalg.lstsq(x, tmp[idx].T)
 
         s0[idx] = np.exp(beta[0])
-        t2star[idx] = 1./beta[1]
+        t2star[idx] = 1./beta[1] 
+
+        # Make millisecond
+        t2star *= 1000
 
         s0 = s0 / np.percentile(s0, 95) * 4095
 
         t2star[t2star < min_t2star] = min_t2star
         t2star[t2star > max_t2star] = max_t2star
+
 
         self._s0 = image.new_img_like(self.t2starw_echoes, s0)
         self._t2starmap = image.new_img_like(self.t2starw_echoes, t2star)
