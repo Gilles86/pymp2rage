@@ -582,6 +582,7 @@ class MP2RAGE(object):
             B1 = self.b1
         else:
             B1 = nb.load(B1)
+            self.b1 = B1
             
         if B1.shape != self.inv1.shape:
             logging.warning('B1 map has different resolution from ' \
