@@ -359,8 +359,8 @@ class MP2RAGE(object):
         inv2 = df.loc[2, 'mag'].fn
         inv2ph = df.loc[2, 'phase'].fn
 
-        print('Found following files:\n inv1, magnitude: {inv1}\ninv1, phase: {inv1ph}'\
-              '\ninv2, magnitude: {inv2}\n inv2, phase: {inv2ph}'.format(**locals()))
+        print('Found following files:\n * inv1, magnitude: {inv1}\n * inv1, phase: {inv1ph}'\
+              '\n * inv2, magnitude: {inv2}\n * inv2, phase: {inv2ph}'.format(**locals()))
         
         meta_inv1 = layout.get_metadata(inv1)
         meta_inv2 = layout.get_metadata(inv2)
