@@ -430,7 +430,7 @@ class MP2RAGE(object):
 
             INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
             part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
-            MP2RAGE_reg = re.compile('_?(ME)MP2RAGE', re.IGNORECASE)
+            MP2RAGE_reg = re.compile('_(ME)?MP2RAGE', re.IGNORECASE)
 
             for reg in [INV_reg, part_reg, MP2RAGE_reg]:
                 prefix = reg.sub('', prefix)
@@ -718,25 +718,25 @@ class MEMP2RAGE(MP2RAGE):
         if type(inv2ph) is list:
             inv2ph = image.concat_imgs(inv2ph)
         
-        self.t2w_echoes = inv2
+        self.t2starw_echoes = inv2
         self.inv2_echo_times = np.array(echo_times)
         self.n_echoes = len(echo_times)
 
         if inv2ph is not None:
-            self.t2w_echoes_phase = inv2ph
+            self.t2starw_echoes_phase = inv2ph
 
-        if self.t2w_echoes.shape[-1] != self.n_echoes:
+        if self.t2starw_echoes.shape[-1] != self.n_echoes:
             raise ValueError('Length of echo_times should correspond to the number of echoes'\
                              'in INV2')
 
         
-        inv2 = image.index_img(self.t2w_echoes, 0)
-        inv2ph = image.index_img(self.t2w_echoes_phase, 0)
+        inv2 = image.index_img(self.t2starw_echoes, 0)
+        inv2ph = image.index_img(self.t2starw_echoes_phase, 0)
 
 
         self._s0 = None
         self._t2star = None
-        self._t2w = None
+        self._t2starw = None
 
         super(MEMP2RAGE, self).__init__(MPRAGE_tr=MPRAGE_tr,
                                         invtimesAB=invtimesAB,
@@ -754,11 +754,11 @@ class MEMP2RAGE(MP2RAGE):
 
     def fit_t2star(self, min_t2star=0, max_t2star=300):
 
-        tmp = np.log(self.t2w_echoes.get_data())
+        tmp = np.log(self.t2starw_echoes.get_data())
         idx = (tmp > 0).all(-1)
 
-        s0 = np.zeros(self.t2w_echoes.shape[:3])
-        t2star = np.zeros(self.t2w_echoes.shape[:3])
+        s0 = np.zeros(self.t2starw_echoes.shape[:3])
+        t2star = np.zeros(self.t2starw_echoes.shape[:3])
 
         x = np.concatenate((np.ones((self.n_echoes, 1)), -self.inv2_echo_times[..., np.newaxis]), 1)
 
@@ -770,8 +770,8 @@ class MEMP2RAGE(MP2RAGE):
         t2star[t2star < min_t2star] = min_t2star
         t2star[t2star > max_t2star] = max_t2star
 
-        self._s0 = image.new_img_like(self.t2w_echoes, s0)
-        self._t2star = image.new_img_like(self.t2w_echoes, t2star)
+        self._s0 = image.new_img_like(self.t2starw_echoes, s0)
+        self._t2star = image.new_img_like(self.t2starw_echoes, t2star)
 
         return self._t2star
 
@@ -790,11 +790,12 @@ class MEMP2RAGE(MP2RAGE):
         return self._s0
 
     @property
-    def t2w(self):
-        if self._t2w is None:
-            self._t2w = image.mean_img(self.t2w_echoes)
+    def t2starw(self):
+        if self._t2starw is None:
+            self._t2starw = image.mean_img(self.t2starw_echoes)
+            self._t2starw = image.math_img('im / np.percentile(im, 95) * 4095', im=self._t2starw)
 
-        return self._t2w
+        return self._t2starw
 
     @classmethod
     def from_bids(cls, source_dir, subject, **kwargs):
