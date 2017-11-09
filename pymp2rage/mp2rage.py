@@ -161,11 +161,11 @@ class MP2RAGE(object):
         return self._t1map
 
     @property
-    def t1(self):
-        if self._t1 is None:
+    def r1(self):
+        if self._t1map is None:
             self.fit_t1()
 
-        return self._t1
+        return image.math_img('1./t1', t1=self._t1map)
     
     def fit_t1w_uni(self):
         compINV1 = self.inv1.get_data() * np.exp(self.inv1ph.get_data() * 1j)
@@ -782,7 +782,14 @@ class MEMP2RAGE(MP2RAGE):
         if self._t2starmap is None:
             self.fit_t2star()
 
-        return self._t2star
+        return self._t2starmap
+
+    @property
+    def r2starmap(self):
+        if self._t2starmap is None:
+            self.fit_t2star()
+
+        return image.math_img('1./t2star', t2star=self._t2starmap)
 
     @property
     def s0(self):
