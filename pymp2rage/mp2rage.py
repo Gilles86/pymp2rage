@@ -767,6 +767,8 @@ class MEMP2RAGE(MP2RAGE):
         s0[idx] = np.exp(beta[0])
         t2star[idx] = 1./beta[1]
 
+        s0 = s0 / np.percentile(s0, 95) * 4095
+
         t2star[t2star < min_t2star] = min_t2star
         t2star[t2star > max_t2star] = max_t2star
 
