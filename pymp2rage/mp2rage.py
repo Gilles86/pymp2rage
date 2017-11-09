@@ -49,10 +49,10 @@ class MP2RAGE(object):
                                                          Can be used to correct T1-weighted image and T1 map
                                                          for B1+ inhomogenieties.
     Attributes:
-        t1 (Nifti1Image): Quantitative T1 map
-        t1_uni (Nifti1Image): Bias-field corrected T1-weighted map
+        t1map (Nifti1Image): Quantitative T1 map
+        t1w_uni (Nifti1Image): Bias-field corrected T1-weighted image
 
-        t1_masked (Nifti1Image): Quantitative T1 map, masked 
+        t1map_masked (Nifti1Image): Quantitative T1 map, masked 
         t1w_uni_masked (Nifti1Image): Bias-field corrected T1-weighted map, masked
     """
 
@@ -127,22 +127,22 @@ class MP2RAGE(object):
         self.B0 = B0
         
         # set up t1
-        self._t1 = None
+        self._t1map = None
 
         # Preset masked versions
         self._t1w_uni = None
         self._mask = None
         self._inv1_masked = None
         self._inv2_masked = None
-        self._t1_masked = None
+        self._t1map_masked = None
         self._t1w_uni_masked = None
 
         if B1_fieldmap is not None:
             self.b1 = nb.load(B1_fieldmap)
 
-            self._t1_b1_corrected = None
+            self._t1map_b1_corrected = None
             self._t1w_uni_b1_corrected = None
-            self._t1_b1_corrected_masked = None
+            self._t1map_b1_corrected_masked = None
             self._t1w_uni_b1_corrected_masked = None
 
 
@@ -154,11 +154,11 @@ class MP2RAGE(object):
         return self._t1w_uni
 
     @property
-    def t1(self):
-        if self._t1 is None:
+    def t1map(self):
+        if self._t1map is None:
             self.fit_t1()
 
-        return self._t1
+        return self._t1map
 
     @property
     def t1(self):
@@ -199,16 +199,16 @@ class MP2RAGE(object):
         T1Vector = T1Vector[np.argsort(Intensity)]
         Intensity = np.sort(Intensity)
         
-        self._t1 = np.interp(-0.5 + self.t1w_uni.get_data()/4096, Intensity, T1Vector)
-        self._t1[np.isnan(self._t1)] = 0
+        self._t1map = np.interp(-0.5 + self.t1w_uni.get_data()/4096, Intensity, T1Vector)
+        self._t1map[np.isnan(self._t1map)] = 0
         
         # Convert to milliseconds
-        self._t1 *= 1000
+        self._t1map *= 1000
         
         # Make image
-        self._t1 = nb.Nifti1Image(self._t1, self.t1w_uni.affine)
+        self._t1map = nb.Nifti1Image(self._t1map, self.t1w_uni.affine)
         
-        return self._t1
+        return self._t1map
 
 
 
@@ -263,8 +263,8 @@ class MP2RAGE(object):
 
 
     @property
-    def t1_masked(self):
-        return image.math_img('t1 * mask', t1=self.t1, mask=self.mask)
+    def t1map_masked(self):
+        return image.math_img('t1map * mask', t1map=self.t1map, mask=self.mask)
 
     @property
     def t1w_uni_masked(self):
@@ -439,27 +439,27 @@ class MP2RAGE(object):
 
         ext = '.nii.gz' if compress else '.nii'
 
-        t1_filename = os.path.join(path, prefix+'_T1map'+ext)
-        print("Writing T1 map to %s" % t1_filename)
-        self.t1.to_filename(t1_filename)
+        t1map_filename = os.path.join(path, prefix+'_T1map'+ext)
+        print("Writing T1 map to %s" % t1map_filename)
+        self.t1map.to_filename(t1map_filename)
 
         t1w_uni_filename = os.path.join(path, prefix+'_T1w'+ext)
         print("Writing bias-field corrected T1-weighted image to %s" % t1w_uni_filename)
         self.t1w_uni.to_filename(t1w_uni_filename)
 
         if masked:
-            t1_masked_filename = os.path.join(path, prefix+'_T1map_masked'+ext)
-            print("Writing masked T1 map to %s" % t1_masked_filename)
-            self.t1_masked.to_filename(t1_masked_filename)
+            t1map_masked_filename = os.path.join(path, prefix+'_T1map_masked'+ext)
+            print("Writing masked T1 map to %s" % t1map_masked_filename)
+            self.t1map_masked.to_filename(t1map_masked_filename)
 
             t1w_uni_masked_filename = os.path.join(path, prefix+'_T1w_masked'+ext)
             print("Writing masked bias-field corrected T1-weighted image to %s" % t1w_uni_masked_filename)
             self.t1w_uni_masked.to_filename(t1w_uni_masked_filename)
 
-        if hasattr(self, 't1_b1_corrected'):
-            t1_b1_corrected_filename = os.path.join(path, prefix+'_T1map_b1corrected.nii.gz')
-            print('Writing B1-corrected T1 map to %s' % t1_b1_corrected_filename)
-            self.t1_b1_corrected.to_filename(t1_b1_corrected_filename)
+        if hasattr(self, 't1map_b1_corrected'):
+            t1map_b1_corrected_filename = os.path.join(path, prefix+'_T1map_b1corrected.nii.gz')
+            print('Writing B1-corrected T1 map to %s' % t1map_b1_corrected_filename)
+            self.t1map_b1_corrected.to_filename(t1map_b1_corrected_filename)
 
         if hasattr(self, 't1w_uni_b1_corrected'):
             t1w_uni_b1_corrected_filename = os.path.join(path, prefix+'_T1w_b1corrected.nii.gz')
@@ -540,7 +540,7 @@ class MP2RAGE(object):
 
     def correct_for_B1(self, B1=None, check_B1_range=True):
         """ This function corrects the bias-field corrected T1-weighted image (`t1w_uni`-attribute)
-        and the quantitative T1 map (`t1`-attribute) for B1 inhomogenieties using a B1 field map. 
+        and the quantitative T1 map (`t1map`-attribute) for B1 inhomogenieties using a B1 field map. 
         (see Marques and Gruetter, 2013).
         It assumes that the B1 field map is either a ratio of the real and intended 
         flip angle (range of approximately 0 - 2) *or* the percentage of the real
@@ -570,7 +570,7 @@ class MP2RAGE(object):
             (tuple): tuple containing:
 
                 t1w_uni_b1_corrected: A T1-weighted image corrected for B1 inhomogenieties
-                t1_b1_corrected: A quantiative T1-weighted image corrected for B1 inhomogenieties
+                t1map_b1_corrected: A quantiative T1-weighted image corrected for B1 inhomogenieties
 
         
         """
@@ -673,7 +673,7 @@ class MP2RAGE(object):
         
         # Interpolate T1-corrected map
         t1c[mask] = f(x[mask], y[mask], grid=False)
-        self.t1_b1_corrected = nb.Nifti1Image(t1c * 1000, self.t1.affine)
+        self.t1map_b1_corrected = nb.Nifti1Image(t1c * 1000, self.t1map.affine)
         
         # *** Create corrected T1-weighted image ***
         Intensity, T1vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, 
@@ -688,7 +688,7 @@ class MP2RAGE(object):
         t1w_uni_corrected = (f(t1c) + .5) * 4095    
         self.t1w_uni_b1_corrected = nb.Nifti1Image(t1w_uni_corrected, self.t1w_uni.affine)
         
-        return self.t1_b1_corrected, self.t1w_uni_b1_corrected
+        return self.t1map_b1_corrected, self.t1w_uni_b1_corrected
 
 
 class MEMP2RAGE(MP2RAGE):
@@ -735,7 +735,7 @@ class MEMP2RAGE(MP2RAGE):
 
 
         self._s0 = None
-        self._t2star = None
+        self._t2starmap = None
         self._t2starw = None
 
         super(MEMP2RAGE, self).__init__(MPRAGE_tr=MPRAGE_tr,
@@ -773,13 +773,13 @@ class MEMP2RAGE(MP2RAGE):
         t2star[t2star > max_t2star] = max_t2star
 
         self._s0 = image.new_img_like(self.t2starw_echoes, s0)
-        self._t2star = image.new_img_like(self.t2starw_echoes, t2star)
+        self._t2starmap = image.new_img_like(self.t2starw_echoes, t2star)
 
-        return self._t2star
+        return self._t2starmap
 
     @property
-    def t2star(self):
-        if self._t2star is None:
+    def t2starmap(self):
+        if self._t2starmap is None:
             self.fit_t2star()
 
         return self._t2star
