@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import nibabel as nb
 from nilearn import image, masking
 import numpy as np
