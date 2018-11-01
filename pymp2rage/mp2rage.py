@@ -281,23 +281,23 @@ class MP2RAGE(object):
 
 
     @classmethod
-    def from_bids(cls, source_dir, subject, **kwargs):
+    def from_bids(cls, source_dir, subject, use_B1map=True, **kwargs):
         """ Creates a MP2RAGE-object from a properly organized BIDS-folder.
 
         The folder should be organized as follows:
 
         sub-01/anat/:
-         * sub-01_inv-1_part-mag_MP2RAGE.nii
-         * sub-01_inv-1_part-phase_MP2RAGE.nii
-         * sub-01_inv-2_part-mag_MP2RAGE.nii
-         * sub-01_inv-2_part-phase_MP2RAGE.nii
-         * sub-01_inv-1_MP2RAGE.json
-         * sub-01_inv-2_MP2RAGE.json
+         * sub-01_inv-1_part-mag_MPRAGE.nii
+         * sub-01_inv-1_part-phase_MPRAGE.nii
+         * sub-01_inv-2_part-mag_MPRAGE.nii
+         * sub-01_inv-2_part-phase_MPRAGE.nii
+         * sub-01_inv-1_MPRAGE.json
+         * sub-01_inv-2_MPRAGE.json
 
          The JSON-files should contain all the necessary MP2RAGE sequence parameters
          and should look something like this:
 
-         sub-01/anat/sub-01_inv-1_MP2RAGE.json:
+         sub-01/anat/sub-01_inv-1_MPRAGE.json:
              {
                 "InversionTime":0.8,
                 "FlipAngle":5,
@@ -306,7 +306,7 @@ class MP2RAGE(object):
                 "NumberShots":159
              }
 
-         sub-01/anat/sub-01_inv-2_MP2RAGE.json:
+         sub-01/anat/sub-01_inv-2_MPRAGE.json:
              {
                 "InversionTime":2.7,
                 "FlipAngle":7,
@@ -332,7 +332,7 @@ class MP2RAGE(object):
 
         layout = BIDSLayout(source_dir)
         
-        filenames = layout.get(subject=subject, return_type='file', type='MP2RAGE', extensions=['.nii', '.nii.gz'], **kwargs)
+        filenames = layout.get(subject=subject, return_type='file', type='MPRAGE', extensions=['.nii', '.nii.gz'], **kwargs)
         
         part_regex = re.compile('part-(mag|phase)')
         inv_regex = re.compile('inv-([0-9]+)')
@@ -854,34 +854,34 @@ class MEMP2RAGE(MP2RAGE):
 
         sub-01/anat/:
         # The first inversion time volumes
-         * sub-01_inv-1_part-mag_MEMP2RAGE.nii
-         * sub-01_inv-1_part-phase_MEMP2RAGE.nii
+         * sub-01_inv-1_part-mag_MPRAGE.nii
+         * sub-01_inv-1_part-phase_MPRAGE.nii
          
         # The four echoes of the second inversion (magnitude)
-         * sub-01_inv-2_part-mag_echo-1_MEMP2RAGE.nii
-         * sub-01_inv-2_part-mag_echo-2_MEMP2RAGE.nii
-         * sub-01_inv-2_part-mag_echo-3_MEMP2RAGE.nii
-         * sub-01_inv-2_part-mag_echo-4_MEMP2RAGE.nii
+         * sub-01_inv-2_part-mag_echo-1_MPRAGE.nii
+         * sub-01_inv-2_part-mag_echo-2_MPRAGE.nii
+         * sub-01_inv-2_part-mag_echo-3_MPRAGE.nii
+         * sub-01_inv-2_part-mag_echo-4_MPRAGE.nii
          
         # The four echoes of the second inversion (phase)         
-         * sub-01_inv-2_part-phase_echo-1_MEMP2RAGE.nii
-         * sub-01_inv-2_part-phase_echo-2_MEMP2RAGE.nii
-         * sub-01_inv-2_part-phase_echo-3_MEMP2RAGE.nii
-         * sub-01_inv-2_part-phase_echo-4_MEMP2RAGE.nii
+         * sub-01_inv-2_part-phase_echo-1_MPRAGE.nii
+         * sub-01_inv-2_part-phase_echo-2_MPRAGE.nii
+         * sub-01_inv-2_part-phase_echo-3_MPRAGE.nii
+         * sub-01_inv-2_part-phase_echo-4_MPRAGE.nii
 
         # The json describing the parameters of the first inversion pulse
-         * sub-01_inv-1_MEMP2RAGE.json
+         * sub-01_inv-1_MPRAGE.json
          
         # The json describing the parameters of the second inversion pulse
-         * sub-01_inv-2_echo-1_MEMP2RAGE.json
-         * sub-01_inv-2_echo-2_MEMP2RAGE.json
-         * sub-01_inv-2_echo-3_MEMP2RAGE.json
-         * sub-01_inv-2_echo-4_MEMP2RAGE.json
+         * sub-01_inv-2_echo-1_MPRAGE.json
+         * sub-01_inv-2_echo-2_MPRAGE.json
+         * sub-01_inv-2_echo-3_MPRAGE.json
+         * sub-01_inv-2_echo-4_MPRAGE.json
 
          The JSON-files should contain all the necessary MP2RAGE sequence parameters
          and should look something like this:
 
-         sub-01/anat/sub-01_inv-1_MEMP2RAGE.json:
+         sub-01/anat/sub-01_inv-1_MPRAGE.json:
              {
                 "InversionTime":0.67,
                 "FlipAngle":7,
@@ -890,7 +890,7 @@ class MEMP2RAGE(MP2RAGE):
                 "NumberShots":150
              }
 
-         sub-01/anat/sub-01_inv-2_echo-1_MEMP2RAGE.json:
+         sub-01/anat/sub-01_inv-2_echo-1_MPRAGE.json:
              {
                 "InversionTime":3.855,
                 "FlipAngle":6,
@@ -900,7 +900,7 @@ class MEMP2RAGE(MP2RAGE):
                 "EchoTime": 6.0
              }
              
-         sub-01/anat/sub-01_inv-2_echo-2_MEMP2RAGE.json:
+         sub-01/anat/sub-01_inv-2_echo-2_MPRAGE.json:
              {
                 "InversionTime":3.855,
                 "FlipAngle":6,
@@ -910,7 +910,7 @@ class MEMP2RAGE(MP2RAGE):
                 "EchoTime": 14.5
              }
              
-         sub-01/anat/sub-01_inv-2_echo-3_MEMP2RAGE.json:
+         sub-01/anat/sub-01_inv-2_echo-3_MPRAGE.json:
              {
                 "InversionTime":3.855,
                 "FlipAngle":6,
@@ -920,7 +920,7 @@ class MEMP2RAGE(MP2RAGE):
                 "EchoTime": 23
              }
              
-         sub-01/anat/sub-01_inv-2_echo-4_MEMP2RAGE.json:
+         sub-01/anat/sub-01_inv-2_echo-4_MPRAGE.json:
              {
                 "InversionTime":3.855,
                 "FlipAngle":6,
@@ -945,7 +945,7 @@ class MEMP2RAGE(MP2RAGE):
         
         layout = BIDSLayout(source_dir)
         
-        filenames = layout.get(subject=subject, return_type='file', type='MEMP2RAGE', extensions=['.nii', '.nii.gz'], **kwargs)
+        filenames = layout.get(subject=subject, return_type='file', type='MPRAGE', extensions=['.nii', '.nii.gz'], **kwargs)
         
         part_regex = re.compile('part-(mag|phase)')
         inv_regex = re.compile('inv-([0-9]+)')
