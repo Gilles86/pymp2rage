@@ -140,6 +140,7 @@ class MP2RAGE(object):
 
         if B1_fieldmap is not None:
             self.b1 = nb.load(B1_fieldmap)
+            self.b1 = image.resample_to_img(self.b1, self.inv1)
 
             self._t1map_b1_corrected = None
             self._t1w_uni_b1_corrected = None
@@ -383,7 +384,17 @@ class MP2RAGE(object):
         FLASH_tr = [meta_inv1['ExcitationRepetitionTime'], meta_inv2['ExcitationRepetitionTime']]
         
         B0 = meta_inv1.pop('FieldStrength', 7)
-        
+
+        if 'session' in kwargs:
+            session = kwargs['session']
+        else:
+            session = '.*'
+
+        if use_B1map:
+            B1_fieldmap = _get_B1map(layout, subject, session=session)
+        else:
+            B1_fieldmap = None
+
         return cls(MPRAGE_tr,
                    invtimesAB,
                    flipangleABdegree,
@@ -392,7 +403,8 @@ class MP2RAGE(object):
                    inv1=inv1,
                    inv1ph=inv1ph,
                    inv2=inv2,
-                   inv2ph=inv2ph)
+                   inv2ph=inv2ph,
+                   B1_fieldmap=B1_fieldmap)
 
 
     def write_files(self, path=None, prefix=None, compress=True, masked=False):
@@ -600,7 +612,7 @@ class MP2RAGE(object):
                 B1 = image.math_img('B1 / 100.', B1=B1)
 
 
-            if (np.abs(np.median(B1.get_data()) - 1) > .25):
+            if np.median(B1.get_data()) > 2:
                 raise ValueError('Median of B1 is far from 1. The scale of this B1 map '\
                                  'is most likely wrong.')
             
@@ -846,7 +858,11 @@ class MEMP2RAGE(MP2RAGE):
 
 
     @classmethod
-    def from_bids(cls, source_dir, subject, **kwargs):
+    def from_bids(cls, 
+                  source_dir, 
+                  subject, 
+                  use_B1map=True,
+                  **kwargs):
     
         """ Creates a MEMP2RAGE-object from a properly organized BIDS-folder.
 
@@ -1010,6 +1026,18 @@ class MEMP2RAGE(MP2RAGE):
         B0 = meta_inv1.pop('FieldStrength', 7)
         
         
+        kwargs_B1 = {}
+
+        if 'session' in kwargs:
+            session = kwargs['session']
+        else:
+            session = '.*'
+
+        if use_B1map:
+            B1_fieldmap = _get_B1map(layout, subject, session=session)
+        else:
+            B1_fieldmap = None
+
         echo_times = []
             
         for echo in echo_indices:
@@ -1025,4 +1053,28 @@ class MEMP2RAGE(MP2RAGE):
                    inv1=inv1,
                    inv1ph=inv1ph,
                    inv2=df.loc[2, 'mag'].fn.tolist(),
-                   inv2ph=df.loc[2, 'phase'].fn.tolist())
+                   inv2ph=df.loc[2, 'phase'].fn.tolist(),
+                   B1_fieldmap=B1_fieldmap)
+
+
+    
+def _get_B1map(layout, subject, session):
+    B1_filenames = layout.get(subject=subject,
+                              session=session,
+                              return_type='file',
+                              type='B1map', 
+                              extensions=['.nii', '.nii.gz'])
+
+    if (len(B1_filenames) == 0):
+        B1_fieldmap = None
+
+    if len(B1_filenames) == 1:
+        B1_fieldmap = B1_filenames[0]
+        print('found one B1 map: {}'.format(B1_fieldmap))
+
+    if len(B1_filenames) > 1:
+        B1_fieldmap = B1_filenames[0]
+        print('found multiple B1 maps: {}'.format(B1_filenames))
+        print('Using {} as B1 map'.format(B1_fieldmap))
+
+    return B1_fieldmap
