@@ -3,7 +3,7 @@ import nibabel as nb
 from nilearn import image, masking
 import numpy as np
 import logging
-from bids.grabbids import BIDSLayout
+from bids import BIDSLayout
 import pandas
 import re
 import os
