@@ -9,7 +9,7 @@ import re
 import os
 import matplotlib.pyplot as plt
 from scipy import interpolate
-from .utils import MPRAGEfunc_varyingTR, MP2RAGE_lookuptable
+from .utils import MPRAGEfunc_varyingTR, MP2RAGE_lookuptable, split_filename
 
 
 class MP2RAGE(object):
@@ -149,20 +149,6 @@ class MP2RAGE(object):
 
 
     @property
-    def t1w_uni(self):
-        if self._t1w_uni is None:
-            self.fit_t1w_uni()
-
-        return self._t1w_uni
-
-    @property
-    def t1map(self):
-        if self._t1map is None:
-            self.fit_t1()
-
-        return self._t1map
-
-    @property
     def r1(self):
         if self._t1map is None:
             self.fit_t1()
@@ -263,6 +249,19 @@ class MP2RAGE(object):
 
         return self._mask
 
+    @property
+    def t1w_uni(self):
+        if self._t1w_uni is None:
+            self.fit_t1w_uni()
+
+        return self._t1w_uni
+
+    @property
+    def t1map(self):
+        if self._t1map is None:
+            self.fit_t1()
+
+        return self._t1map
 
     @property
     def t1map_masked(self):
@@ -439,46 +438,36 @@ class MP2RAGE(object):
         
 
         if prefix is None:
-            prefix = os.path.split(self.inv1.get_filename())[-1]
+            prefix = split_filename(self.inv1.get_filename())[1]
 
             INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
             part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
-            MP2RAGE_reg = re.compile('_(ME)?MP2RAGE', re.IGNORECASE)
+            MP2RAGE_reg = re.compile('_(ME)?MPRAGE', re.IGNORECASE)
 
             for reg in [INV_reg, part_reg, MP2RAGE_reg]:
                 prefix = reg.sub('', prefix)
 
-            prefix = os.path.splitext(prefix)[0]
-
         ext = '.nii.gz' if compress else '.nii'
 
+        files = []
+
         t1map_filename = os.path.join(path, prefix+'_T1map'+ext)
-        print("Writing T1 map to %s" % t1map_filename)
-        self.t1map.to_filename(t1map_filename)
-
         t1w_uni_filename = os.path.join(path, prefix+'_T1w'+ext)
-        print("Writing bias-field corrected T1-weighted image to %s" % t1w_uni_filename)
-        self.t1w_uni.to_filename(t1w_uni_filename)
+        files.append(t1map_filename)
+        files.append(t1w_uni_filename)
 
-        if masked:
-            t1map_masked_filename = os.path.join(path, prefix+'_T1map_masked'+ext)
-            print("Writing masked T1 map to %s" % t1map_masked_filename)
-            self.t1map_masked.to_filename(t1map_masked_filename)
+        if hasattr(self, 'b1'):
+            self.correct_for_B1()
+            self.t1w_uni_b1_corrected.to_filename(t1w_uni_filename)
+            self.t1map_b1_corrected.to_filename(t1map_filename)
+        else:
+            self.t1w_uni.to_filename(t1w_uni_filename)
+            self.t1map.to_filename(t1map_filename)
 
-            t1w_uni_masked_filename = os.path.join(path, prefix+'_T1w_masked'+ext)
-            print("Writing masked bias-field corrected T1-weighted image to %s" % t1w_uni_masked_filename)
-            self.t1w_uni_masked.to_filename(t1w_uni_masked_filename)
+        print("Writing T1 map to %s" % t1map_filename)
+        print("Writing UNI T1-weighted image to %s" % t1w_uni_filename)
 
-        if hasattr(self, 't1map_b1_corrected'):
-            t1map_b1_corrected_filename = os.path.join(path, prefix+'_T1map_b1corrected.nii.gz')
-            print('Writing B1-corrected T1 map to %s' % t1map_b1_corrected_filename)
-            self.t1map_b1_corrected.to_filename(t1map_b1_corrected_filename)
-
-        if hasattr(self, 't1w_uni_b1_corrected'):
-            t1w_uni_b1_corrected_filename = os.path.join(path, prefix+'_T1w_b1corrected.nii.gz')
-            print('Writing B1-corrected T1-weighted image to %s' % t1w_uni_b1_corrected_filename)
-            self.t1w_uni_b1_corrected.to_filename(t1w_uni_b1_corrected_filename)
-
+        return files
 
 
     def plot_B1_effects(self):
@@ -832,16 +821,14 @@ class MEMP2RAGE(MP2RAGE):
             path = os.path.dirname(self.inv1.get_filename())
 
         if prefix is None:
-            prefix = os.path.split(self.inv1.get_filename())[-1]
+            prefix = split_filename(self.inv1.get_filename())[1]
 
             INV_reg = re.compile('_?(INV)-?(1|2)', re.IGNORECASE)
             part_reg = re.compile('_?(part)-?(mag|phase)', re.IGNORECASE)
-            MP2RAGE_reg = re.compile('_(ME)?MP2RAGE', re.IGNORECASE)
+            MP2RAGE_reg = re.compile('_(ME)?MPRAGE', re.IGNORECASE)
 
             for reg in [INV_reg, part_reg, MP2RAGE_reg]:
                 prefix = reg.sub('', prefix)
-
-            prefix = os.path.splitext(prefix)[0]
 
         ext = '.nii.gz' if compress else '.nii'
         t2starw_filename = os.path.join(path, prefix+'_T2starw'+ext)
