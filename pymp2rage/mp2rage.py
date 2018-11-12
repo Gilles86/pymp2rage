@@ -449,12 +449,12 @@ class MP2RAGE(object):
 
         ext = '.nii.gz' if compress else '.nii'
 
-        files = []
+        files = {}
 
         t1map_filename = os.path.join(path, prefix+'_T1map'+ext)
         t1w_uni_filename = os.path.join(path, prefix+'_T1w'+ext)
-        files.append(t1map_filename)
-        files.append(t1w_uni_filename)
+        files['t1map'] = t1map_filename
+        files['t1w_uni'] = t1w_uni_filename
 
         if hasattr(self, 'b1'):
             self.correct_for_B1()
@@ -815,7 +815,7 @@ class MEMP2RAGE(MP2RAGE):
 
     def write_files(self, path=None, prefix=None, compress=True, *args, **kwargs):
 
-        super(MEMP2RAGE, self).write_files(path, prefix, compress, *args, **kwargs)
+        files = super(MEMP2RAGE, self).write_files(path, prefix, compress, *args, **kwargs)
 
         if path is None:
             path = os.path.dirname(self.inv1.get_filename())
@@ -834,14 +834,19 @@ class MEMP2RAGE(MP2RAGE):
         t2starw_filename = os.path.join(path, prefix+'_T2starw'+ext)
         print("Writing T2 star-weighted image to %s" % t2starw_filename)
         self.t2starw.to_filename(t2starw_filename)
+        files['t2starw'] = t2starw_filename
 
         t2starmap_filename = os.path.join(path, prefix+'_T2starmap'+ext)
         print("Writing T2 star map to %s" % t2starmap_filename)
         self.t2starmap.to_filename(t2starmap_filename)
+        files['t2starmap'] = t2starmap_filename
 
         s0_filename = os.path.join(path, prefix+'_S0map'+ext)
         print("Writing S0 map to %s" % s0_filename)
         self.s0.to_filename(s0_filename)
+        files['S0map'] = s0_filename
+
+        return files
 
 
     @classmethod
