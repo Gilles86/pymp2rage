@@ -2,6 +2,8 @@
 PyMP2RAGE
 =========
 
+.. image:: https://github.com/Gilles86/pymp2rage/blob/master/examples/figures/qmri.png
+
 This package is a lightweight python implementation of the algorithms described in Marques et al. (2010). They can be used to compute a unified T1-weighted, as well as a quantiative T1 map out of the two phase- and magnitude-images of a MP2RAGE-sequences.
 
 Installation
