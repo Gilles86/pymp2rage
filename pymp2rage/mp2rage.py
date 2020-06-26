@@ -360,6 +360,7 @@ class MP2RAGE(object):
                 df[key] =  df[key].astype(float)
 
         df = df.set_index(['suffix', 'inv', 'part'])
+        df = df.loc[['MP2RAGE', 'TB1map']]
 
         for ix, row in df.iterrows():
 
@@ -981,6 +982,7 @@ class MEMP2RAGE(MP2RAGE):
                 df[key] =  df[key].astype(float)
 
         df = df.set_index(['suffix', 'inv', 'echo', 'part'])
+        df = df.loc[['MP2RAGE', 'TB1map']]
 
         for ix, row in df.iterrows():
 
