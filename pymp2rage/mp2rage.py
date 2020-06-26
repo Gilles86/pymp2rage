@@ -282,7 +282,12 @@ class MP2RAGE(object):
 
 
     @classmethod
-    def from_bids(cls, source_dir, subject, use_B1map=True, **kwargs):
+    def from_bids(cls,
+                  source_dir,
+                  subject=None,
+                  session=None,
+                  run=None,
+                  inversion_efficiency=0.96):
         """ Creates a MP2RAGE-object from a properly organized BIDS-folder.
 
         The folder should be organized as follows:
@@ -333,80 +338,74 @@ class MP2RAGE(object):
 
 
 
-        layout = BIDSLayout(source_dir)
+        __dir__ = os.path.abspath(os.path.dirname(__file__))
+        layout = BIDSLayout(source_dir,
+                            validate=False,
+                            config=op.join(__dir__, 'bids', 'bep001.json'))
 
-        filenames = layout.get(subject=subject, return_type='file', type='MPRAGE', extensions=['.nii', '.nii.gz'], **kwargs)
-
-        part_regex = re.compile('part-(mag|phase)')
-        inv_regex = re.compile('inv-([0-9]+)')
-
-        parts = [part_regex.search(fn).group(1) if part_regex.search(fn) else None for fn in filenames]
-        inversion_idx = [int(inv_regex.search(fn).group(1)) if inv_regex.search(fn) else None for fn in filenames]
-
-        # Check whether we have everything
-        df = pandas.DataFrame({'fn':filenames,
-                               'inv':inversion_idx,
-                               'part':parts})
-
-        tmp = df[np.in1d(df.inv, [1, 2]) & np.in1d(df.part, ['mag', 'phase'])]
-        check = (len(tmp) == 4) & (tmp.groupby(['inv', 'part']).size() == 1).all()
-
-        if not check:
-            raise ValueError('Did not find exactly one Magnitude and phase image for two' \
-                             'inversions. Only found: %s' % tmp.fn.tolist())
+        df = layout.to_df()
 
 
-        df = df.set_index(['inv', 'part'])
+        subject = str(subject) if subject is not None else subject
+        session = str(session) if session is not None else session
+        run = int(run) if run is not None else run
 
-        inv1 = df.loc[1, 'mag'].fn
-        inv1ph = df.loc[1, 'phase'].fn
-        inv2 = df.loc[2, 'mag'].fn
-        inv2ph = df.loc[2, 'phase'].fn
+        for var_str, var in zip(['subject', 'session', 'run'], [subject, session, run]):
+            if var is not None:
+                df = df[df[var_str] == var]
+        df = df[np.in1d(df.extension, ['nii', 'nii.gz'])]
 
-        print('Found following files:\n * inv1, magnitude: {inv1}\n * inv1, phase: {inv1ph}'\
-              '\n * inv2, magnitude: {inv2}\n * inv2, phase: {inv2ph}'.format(**locals()))
+        for key in ['inv', 'fa']:
+            if key in df.columns:
+                df[key] =  df[key].astype(float)
 
-        meta_inv1 = layout.get_metadata(inv1)
-        meta_inv2 = layout.get_metadata(inv2)
+        df = df.set_index(['suffix', 'inv', 'part'])
 
-        for key in ['RepetitionTimePreparation', 'NumberShots', 'PartialFourier']:
-            if key in meta_inv1:
-                if meta_inv1[key] != meta_inv2[key]:
-                    raise ValueError('%s of INV1 and INV2 are different!' % key)
+        for ix, row in df.iterrows():
 
-        MPRAGE_tr = meta_inv1['RepetitionTimePreparation']
-        invtimesAB = [meta_inv1['InversionTime'], meta_inv2['InversionTime']]
-        flipangleABdegree = [meta_inv1['FlipAngle'], meta_inv2['FlipAngle']]
+            for key, value in layout.get_metadata(row.path).items():
+                if key in ['EchoTime', 'InversionTime',
+                           'RepetitionTimePreparation', 'RepetitionTimeExcitation',
+                           'NumberShots', 'FieldStrength', 'FlipAngle']:
+                    df.loc[ix, key] = value
 
-        if 'PartialFourier' in meta_inv1.keys():
-            nZslices = meta_inv1['NumberShots'] * np.array([meta_inv1['PartialFourier'] -.5, 0.5])
+        if 'TB1map' in df.index:
+
+            if len(df.loc['TB1map']) == 1:
+                print('using {} as B1map'.format(str(df.loc['TB1map'].iloc[0]['path'])))
+                b1map = df.loc['TB1map'].iloc[0]['path']
+            else:
+                print('FOUND MORE THAN ONE B1-MAP! Will not use B1-correction')
+                b1map = None
         else:
-            nZslices = meta_inv1['NumberShots']
+            b1map = None
 
-        FLASH_tr = [meta_inv1['RepetitionTimeExcitation'], meta_inv2['RepetitionTimeExcitation']]
+        inv1 = df.loc[('MP2RAGE', 1, 'mag'), 'path']
+        inv1ph = df.loc[('MP2RAGE', 1, 'phase'), 'path']
+        inv2 = df.loc[('MP2RAGE', 2, 'mag'), 'path']
+        inv2ph = df.loc[('MP2RAGE', 2, 'phase'), 'path']
 
-        B0 = meta_inv1.pop('FieldStrength', 7)
+        MPRAGE_tr = df.loc[('MP2RAGE', 1, 'mag'), 'RepetitionTimePreparation']
+        invtimesAB = df.loc[('MP2RAGE', 1, 'mag'), 'InversionTime'], df.loc[('MP2RAGE', 2, 'mag'), 'InversionTime'],
+        nZslices = df.loc[('MP2RAGE', 1, 'mag'), 'NumberShots']
+        FLASH_tr = df.loc[('MP2RAGE', 1, 'mag'), 'RepetitionTimeExcitation'], df.loc[('MP2RAGE', 2, 'mag'), 'RepetitionTimeExcitation']
+        B0 = df.loc[('MP2RAGE', 1, 'mag'), 'FieldStrength']
+        flipangleABdegree = df.loc[('MP2RAGE', 1, 'mag'), 'FlipAngle'], df.loc[('MP2RAGE', 2, 'mag'), 'FlipAngle']
 
-        if 'session' in kwargs:
-            session = kwargs['session']
-        else:
-            session = '.*'
+        mp2rage = cls(MPRAGE_tr=MPRAGE_tr,
+                                invtimesAB=invtimesAB,
+                                flipangleABdegree=flipangleABdegree,
+                                nZslices=nZslices,
+                                FLASH_tr=FLASH_tr,
+                                inversion_efficiency=inversion_efficiency,
+                                B0=B0,
+                               inv1=inv1,
+                               inv1ph=inv1ph,
+                               inv2=inv2,
+                               inv2ph=inv2ph)
 
-        if use_B1map:
-            B1_fieldmap = _get_B1map(layout, subject, session=session)
-        else:
-            B1_fieldmap = None
 
-        return cls(MPRAGE_tr,
-                   invtimesAB,
-                   flipangleABdegree,
-                   nZslices,
-                   FLASH_tr,
-                   inv1=inv1,
-                   inv1ph=inv1ph,
-                   inv2=inv2,
-                   inv2ph=inv2ph,
-                   B1_fieldmap=B1_fieldmap)
+        return mp2rage
 
 
     def write_files(self, path=None, prefix=None, compress=True, masked=False):
