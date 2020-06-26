@@ -1,0 +1,2 @@
+include MANIFEST.in
+include pymp2rage/bids/bep001.json

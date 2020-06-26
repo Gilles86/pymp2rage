@@ -23,7 +23,8 @@ opts = dict(name=NAME,
             packages=PACKAGES,
             package_data=PACKAGE_DATA,
             install_requires=REQUIRES,
-            requires=REQUIRES)
+            requires=REQUIRES,
+            include_package_data=True)
 
 if __name__ == '__main__':
     setup(**opts)
