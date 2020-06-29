@@ -286,6 +286,7 @@ class MP2RAGE(object):
                   source_dir,
                   subject=None,
                   session=None,
+                  acquisition=None,
                   run=None,
                   inversion_efficiency=0.96):
         """ Creates a MP2RAGE-object from a properly organized BIDS-folder.
@@ -350,7 +351,7 @@ class MP2RAGE(object):
         session = str(session) if session is not None else session
         run = int(run) if run is not None else run
 
-        for var_str, var in zip(['subject', 'session', 'run'], [subject, session, run]):
+        for var_str, var in zip(['subject', 'session', 'acquisition', 'run'], [subject, session, acquisition, run]):
             if var is not None:
                 df = df[df[var_str] == var]
         df = df[np.in1d(df.extension, ['nii', 'nii.gz'])]
@@ -857,6 +858,7 @@ class MEMP2RAGE(MP2RAGE):
                   source_dir,
                   subject=None,
                   session=None,
+                  acquisition=None,
                   run=None,
                   inversion_efficiency=0.96):
 
@@ -972,7 +974,7 @@ class MEMP2RAGE(MP2RAGE):
         session = str(session) if session is not None else session
         run = int(run) if run is not None else run
 
-        for var_str, var in zip(['subject', 'session', 'run'], [subject, session, run]):
+        for var_str, var in zip(['subject', 'session', 'run', 'acquisition'], [subject, session, run, acquisition]):
             if var is not None:
                 df = df[df[var_str] == var]
         df = df[np.in1d(df.extension, ['nii', 'nii.gz'])]
