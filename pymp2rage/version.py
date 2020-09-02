@@ -20,7 +20,7 @@ __version__ = '.'.join(map(str, _ver))
 CLASSIFIERS = ["Development Status :: 3 - Alpha",
                "Environment :: Console",
                "Intended Audience :: Science/Research",
-               "License :: OSI Approved :: MIT License",
+               "License :: OSI Approved :: Apache License, 2.0"",
                "Operating System :: OS Independent",
                "Programming Language :: Python",
                "Topic :: Scientific/Engineering"]
@@ -35,16 +35,6 @@ PyMP2RAGE
 Pymp2rage is a lightweight Python library to process MRI data acquired with the MP2RAGE
 sequence.
 
-License
-=======
-``shablona`` is licensed under the terms of the MIT license. See the file
-"LICENSE" for information on the history of this software, terms & conditions
-for usage, and a DISCLAIMER OF ALL WARRANTIES.
-
-All trademarks referenced herein are property of their respective holders.
-
-Copyright (c) 2015--, Ariel Rokem, The University of Washington
-eScience Institute.
 """
 
 NAME = "pymp2rage"
@@ -54,7 +44,7 @@ DESCRIPTION = description
 LONG_DESCRIPTION = long_description
 URL = "http://github.com/Gilles86/pymp2rage"
 DOWNLOAD_URL = ""
-LICENSE = "MIT"
+LICENSE = "Apache License, 2.0""
 AUTHOR = "Gilles de Hollander"
 AUTHOR_EMAIL = "gilles.de.hollander@gmail.com"
 PLATFORMS = "OS Independent"
