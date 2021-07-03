@@ -20,7 +20,7 @@ __version__ = '.'.join(map(str, _ver))
 CLASSIFIERS = ["Development Status :: 3 - Alpha",
                "Environment :: Console",
                "Intended Audience :: Science/Research",
-               "License :: OSI Approved :: Apache License, 2.0"",
+               "License :: OSI Approved :: Apache License, 2.0",
                "Operating System :: OS Independent",
                "Programming Language :: Python",
                "Topic :: Scientific/Engineering"]
@@ -44,7 +44,7 @@ DESCRIPTION = description
 LONG_DESCRIPTION = long_description
 URL = "http://github.com/Gilles86/pymp2rage"
 DOWNLOAD_URL = ""
-LICENSE = "Apache License, 2.0""
+LICENSE = "Apache License, 2.0"
 AUTHOR = "Gilles de Hollander"
 AUTHOR_EMAIL = "gilles.de.hollander@gmail.com"
 PLATFORMS = "OS Independent"
