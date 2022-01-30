@@ -311,7 +311,7 @@ class MP2RAGE(object):
                 "RepetitionTimeExcitation":0.0062,
                 "RepetitionTimePreparation":5.5,
                 "NumberShots":159,
-                "FieldStrength":7
+                "MagneticFieldStrength":7
              }
 
          sub-01/anat/sub-01_inv-2_MPRAGE.json:
@@ -321,7 +321,7 @@ class MP2RAGE(object):
                 "RepetitionTimeExcitation":0.0062,
                 "RepetitionTimePreparation":5.5,
                 "NumberShots":159
-                "FieldStrength":7
+                "MagneticFieldStrength":7
              }
 
         A MP2RAGE-object can now be created from the BIDS folder as follows:
@@ -368,7 +368,7 @@ class MP2RAGE(object):
             for key, value in layout.get_metadata(row.path).items():
                 if key in ['EchoTime', 'InversionTime',
                            'RepetitionTimePreparation', 'RepetitionTimeExcitation',
-                           'NumberShots', 'FieldStrength', 'FlipAngle']:
+                           'NumberShots', 'MagneticFieldStrength', 'FlipAngle']:
                     df.loc[ix, key] = value
 
         if 'TB1map' in df.index:
@@ -391,7 +391,7 @@ class MP2RAGE(object):
         invtimesAB = df.loc[('MP2RAGE', 1, 'mag'), 'InversionTime'], df.loc[('MP2RAGE', 2, 'mag'), 'InversionTime'],
         nZslices = df.loc[('MP2RAGE', 1, 'mag'), 'NumberShots']
         FLASH_tr = df.loc[('MP2RAGE', 1, 'mag'), 'RepetitionTimeExcitation'], df.loc[('MP2RAGE', 2, 'mag'), 'RepetitionTimeExcitation']
-        B0 = df.loc[('MP2RAGE', 1, 'mag'), 'FieldStrength']
+        B0 = df.loc[('MP2RAGE', 1, 'mag'), 'MagneticFieldStrength']
         flipangleABdegree = df.loc[('MP2RAGE', 1, 'mag'), 'FlipAngle'], df.loc[('MP2RAGE', 2, 'mag'), 'FlipAngle']
 
         mp2rage = cls(MPRAGE_tr=MPRAGE_tr,
@@ -902,7 +902,7 @@ class MEMP2RAGE(MP2RAGE):
                 "RepetitionTimeExcitation":0.0062,
                 "RepetitionTimePreparation":6.723,
                 "NumberShots":150,
-                "FieldStrength": 7
+                "MagneticFieldStrength": 7
              }
 
          sub-01/anat/sub-01_inv-2_echo-1_MPRAGE.json:
@@ -913,7 +913,7 @@ class MEMP2RAGE(MP2RAGE):
                 "RepetitionTimePreparation":6.723,
                 "NumberShots":150,
                 "EchoTime": 6.0
-                "FieldStrength": 7
+                "MagneticFieldStrength": 7
              }
 
          sub-01/anat/sub-01_inv-2_echo-2_MPRAGE.json:
@@ -924,7 +924,7 @@ class MEMP2RAGE(MP2RAGE):
                 "RepetitionTimePreparation":6.723,
                 "NumberShots":150,
                 "EchoTime": 14.5
-                "FieldStrength": 7
+                "MagneticFieldStrength": 7
              }
 
          sub-01/anat/sub-01_inv-2_echo-3_MPRAGE.json:
@@ -935,7 +935,7 @@ class MEMP2RAGE(MP2RAGE):
                 "RepetitionTimePreparation":6.723,
                 "NumberShots":150,
                 "EchoTime": 23
-                "FieldStrength": 7
+                "MagneticFieldStrength": 7
              }
 
          sub-01/anat/sub-01_inv-2_echo-4_MPRAGE.json:
@@ -946,7 +946,7 @@ class MEMP2RAGE(MP2RAGE):
                 "RepetitionTimePreparation":6.723,
                 "NumberShots":150,
                 "EchoTime": 31.5
-                "FieldStrength": 7
+                "MagneticFieldStrength": 7
              }
 
         A MEMP2RAGE-object can now be created from the BIDS folder as follows:
