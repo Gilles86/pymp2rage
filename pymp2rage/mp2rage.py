@@ -178,8 +178,9 @@ class MP2RAGE(object):
                             ' and FLASH_TR) have to be provided for T1 fitting")
 
         Intensity, T1Vector, _ = MP2RAGE_lookuptable(self.MPRAGE_tr, self.invtimesAB, self.flipangleABdegree,
-                                                     self.nZslices, self.FLASH_tr, self.sequence, 2,
-                                                     self.inversion_efficiency, self.B0)
+                                                     self.nZslices, self.FLASH_tr, self.sequence, nimages=2,
+                                                     inversion_efficiency=self.inversion_efficiency,
+                                                     B0=self.B0)
 
         T1Vector = np.append(T1Vector, T1Vector[-1] + (T1Vector[-1]-T1Vector[-2]))
         Intensity = np.append(Intensity, -0.5)
