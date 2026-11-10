@@ -128,11 +128,9 @@ def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLAS
 
     if len(nZslices)==2:        
         nZ_bef, nZ_aft = nZslices
-        nZslices2 = np.sum(nZslices)
 
     elif len(nZslices) == 1:
         nZ_bef = nZ_aft = nZslices / 2
-        nZslices2 = nZslices
 
     Signal = np.zeros((len(T1vector), 2))
 
@@ -140,7 +138,7 @@ def MP2RAGE_lookuptable(MPRAGE_tr, invtimesAB, flipangleABdegree, nZslices, FLAS
         if ((np.diff(invtimesAB) >= nZ_bef * FLASH_tr[1] + nZ_aft*FLASH_tr[0]) and \
            (invtimesa >= nZ_bef*FLASH_tr[0]) and \
            (invtimesb <= (MPRAGE_tr-nZ_aft*FLASH_tr[1]))):
-            Signal[j, :] = MPRAGEfunc_varyingTR(MPRAGE_tr, invtimesAB, nZslices2, FLASH_tr, [flipanglea, flipangleb], sequence, T1, nimages, B0, M0, inversion_efficiency)
+            Signal[j, :] = MPRAGEfunc_varyingTR(MPRAGE_tr, invtimesAB, nZslices, FLASH_tr, [flipanglea, flipangleb], sequence, T1, nimages, B0, M0, inversion_efficiency)
 
 
         else:
